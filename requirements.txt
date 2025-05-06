@@ -113,6 +113,11 @@ py-cpuinfo>=9.0.0,<10.0.0
 sentence-transformers>=2.3.0
 pynvml>=11.5.0,<12.0.0
 
+# Speech-to-Text dependencies
+SpeechRecognition>=3.10.0
+librosa>=0.10.0
+soundfile>=0.12.1
+
 # Documentation
 sphinx>=7.2.6,<8.0.0
 mkdocs>=1.5.3,<2.0.0
