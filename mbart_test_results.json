@@ -1,0 +1,38 @@
+[
+  {
+    "source_lang": "en",
+    "target_lang": "es",
+    "text": "The quick brown fox jumps over the lazy dog.",
+    "mbart_translation": "La fox marrón rápida salta sobre el can loco.",
+    "mt5_translation": "The quick brown fox :",
+    "mt5_bad_output": "<extra_id_0> en es The quick brown fox jumps over the lazy dog.",
+    "fallback_result": "La fox marrón rápida salta sobre el can loco."
+  },
+  {
+    "source_lang": "es",
+    "target_lang": "en",
+    "text": "El zorro marrón rápido salta sobre el perro perezoso.",
+    "mbart_translation": "El zorro marrón rápido salta sobre el perro perezoso.",
+    "mt5_translation": ") - Google Translate -  El",
+    "mt5_bad_output": "<extra_id_0> es en El zorro marrón rápido salta sobre el perro perezoso.",
+    "fallback_result": "The brown seal quickly jumps over the perezoso dog."
+  },
+  {
+    "source_lang": "en",
+    "target_lang": "fr",
+    "text": "The quick brown fox jumps over the lazy dog.",
+    "mbart_translation": "Le fox brun rapide va sur le chien lazi.",
+    "mt5_translation": "L",
+    "mt5_bad_output": "<extra_id_0> en fr The quick brown fox jumps over the lazy dog.",
+    "fallback_result": "Le fox brun rapide va sur le chien lazi."
+  },
+  {
+    "source_lang": "fr",
+    "target_lang": "en",
+    "text": "Le rapide renard brun saute par-dessus le chien paresseux.",
+    "mbart_translation": "Le rapide renard brun saute par-dessus le chien paresseux.",
+    "mt5_translation": "french to anglais: : Le rapide renard brun saut chien paresseux.",
+    "mt5_bad_output": "<extra_id_0> fr en Le rapide renard brun saute par-dessus le chien paresseux.",
+    "fallback_result": "The fast brown fox jumps over the parasitic dog."
+  }
+]

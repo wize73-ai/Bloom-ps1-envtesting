@@ -1,0 +1,90 @@
+{
+  "language_detection": {
+    "model_name": "papluca/xlm-roberta-base-language-detection",
+    "model_type": "transformers",
+    "tokenizer_name": "papluca/xlm-roberta-base-language-detection",
+    "task": "language_detection",
+    "framework": "transformers"
+  },
+  "translation": {
+    "model_name": "facebook/mbart-large-50-many-to-many-mmt",
+    "tokenizer_name": "facebook/mbart-large-50-many-to-many-mmt",
+    "task": "translation",
+    "type": "transformers",
+    "model_class": "AutoModelForSeq2SeqLM",
+    "framework": "transformers",
+    "is_primary": true,
+    "tokenizer_kwargs": {
+      "src_lang": "en_XX",
+      "tgt_lang": "es_XX"
+    }
+  },
+  "mbart_translation": {
+    "model_name": "facebook/mbart-large-50-many-to-many-mmt",
+    "tokenizer_name": "facebook/mbart-large-50-many-to-many-mmt",
+    "task": "mbart_translation",
+    "type": "transformers",
+    "model_class": "AutoModelForSeq2SeqLM",
+    "framework": "transformers",
+    "is_primary": true,
+    "tokenizer_kwargs": {
+      "src_lang": "en_XX",
+      "tgt_lang": "es_XX"
+    }
+  },
+  "mt5_translation": {
+    "model_name": "google/mt5-small",
+    "tokenizer_name": "google/mt5-small",
+    "task": "mt5_translation",
+    "type": "transformers",
+    "model_class": "AutoModelForSeq2SeqLM",
+    "framework": "transformers",
+    "is_fallback": true,
+    "tokenizer_kwargs": {
+      "model_max_length": 512
+    }
+  },
+  "ner_detection": {
+    "model_name": "dslim/bert-base-NER",
+    "tokenizer_name": "dslim/bert-base-NER",
+    "task": "ner_detection",
+    "type": "transformers",
+    "framework": "transformers"
+  },
+  "simplifier": {
+    "model_name": "facebook/bart-large-cnn",
+    "tokenizer_name": "facebook/bart-large-cnn",
+    "task": "simplification",
+    "type": "transformers",
+    "model_class": "BartForConditionalGeneration",
+    "framework": "transformers"
+  },
+  "rag_generator": {
+    "model_name": "google/mt5-base",
+    "tokenizer_name": "google/mt5-base",
+    "task": "rag_generation",
+    "type": "transformers",
+    "framework": "transformers"
+  },
+  "anonymizer": {
+    "model_name": "bert-base-cased",
+    "tokenizer_name": "bert-base-cased",
+    "task": "anonymization",
+    "type": "transformers",
+    "framework": "transformers"
+  },
+  "rag_retriever": {
+    "model_name": "sentence-transformers/all-mpnet-base-v2",
+    "tokenizer_name": "sentence-transformers/all-mpnet-base-v2",
+    "task": "embedding",
+    "type": "sentence-transformers",
+    "framework": "sentence-transformers"
+  },
+  "embedding_model": {
+    "model_name": "sentence-transformers/all-mpnet-base-v2",
+    "tokenizer_name": "sentence-transformers/all-mpnet-base-v2",
+    "task": "embedding",
+    "type": "sentence-transformers",
+    "framework": "sentence-transformers"
+  }
+}

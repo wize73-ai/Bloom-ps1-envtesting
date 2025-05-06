@@ -1,0 +1,46 @@
+{
+  "mt5": {
+    "Simple sentence (EN->ES)": {
+      "original": "The quick brown fox jumps over the lazy dog.",
+      "translation": "The quick brown fox :",
+      "time": 0.7331480979919434
+    },
+    "Technical content (EN->FR)": {
+      "original": "The new machine learning models demonstrate unprecedented levels of accuracy when trained on large, diverse datasets.",
+      "translation": "fr: The new machine learning. .",
+      "time": 0.6454498767852783
+    },
+    "Complex sentence (EN->DE)": {
+      "original": "Despite the challenges, the team managed to complete the project ahead of schedule and under budget, which impressed the stakeholders.",
+      "translation": "translate  de: :",
+      "time": 0.5154550075531006
+    },
+    "Figurative language (EN->IT)": {
+      "original": "Her smile was as bright as the morning sun, warming everyone's hearts in the room.",
+      "translation": "translate  it. . .",
+      "time": 0.5869760513305664
+    }
+  },
+  "mbart": {
+    "Simple sentence (EN->ES)": {
+      "original": "The quick brown fox jumps over the lazy dog.",
+      "translation": "La fox marr\u00f3n r\u00e1pida salta sobre el can loco.",
+      "time": 1.060701847076416
+    },
+    "Technical content (EN->FR)": {
+      "original": "The new machine learning models demonstrate unprecedented levels of accuracy when trained on large, diverse datasets.",
+      "translation": "Les nouveaux mod\u00e8les d'apprentissage de la machine d\u00e9montrent des niveaux d'exactitude sans pr\u00e9c\u00e9dent lorsqu'ils sont form\u00e9s sur de grands ensembles de donn\u00e9es vari\u00e9s.",
+      "time": 2.253943681716919
+    },
+    "Complex sentence (EN->DE)": {
+      "original": "Despite the challenges, the team managed to complete the project ahead of schedule and under budget, which impressed the stakeholders.",
+      "translation": "Trotz der Herausforderungen gelang es dem Team, das Projekt vorzeitig und unter Haushalt abzuschlie\u00dfen, was die Stakeholder beeindruckte.",
+      "time": 1.7876498699188232
+    },
+    "Figurative language (EN->IT)": {
+      "original": "Her smile was as bright as the morning sun, warming everyone's hearts in the room.",
+      "translation": "Il suo sorriso era luminoso come il sole del mattino, riscaldando i cuori di tutti nella stanza.",
+      "time": 1.5260229110717773
+    }
+  }
+}
