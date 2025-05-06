@@ -1,46 +1,43 @@
-# Fix Model Loading and API Issues in CasaLingua Pipeline
-
-Repository: [wize73-ai/casMay4](https://github.com/wize73-ai/casMay4)
+# File Structure Reorganization
 
 ## Summary
-- Fixed critical model loading issues that prevented server startup
-- Created proper model registry configuration with correct model classes
-- Fixed scope issues with transformer imports to prevent UnboundLocalError
-- Ensured all models use the correct classes for their intended tasks
-- Fixed health endpoints to properly report model registry status
-- Fixed authentication bypass for development mode
-- Added development environment setup helpers
-- Implemented direct model testing capability independent of API endpoints
-- Fixed language detection response format to include required fields
-- Implemented missing API endpoints for text simplification and anonymization
-- Added comprehensive API endpoint testing tools
+This PR reorganizes the project's file structure to improve maintainability and follow best practices for Python projects.
 
-## Test Results
-All models now load properly with their correct classes:
-- ✅ Translation: Working correctly
-- ✅ Simplifier (T5): Fixed using T5ForConditionalGeneration model class
-- ✅ NER Detection: Working correctly
-- ✅ RAG Generator: Working correctly
-- ✅ Anonymizer: Working correctly
-- ✅ Language Detection: Fixed response format to include detected_language key
+## Changes
+- **Scripts Organization**: 
+  - Moved utility scripts to `/scripts/utilities/`
+  - Moved fix-related scripts to `/scripts/fixes/`
+  - Moved general scripts to `/scripts/`
+  - Renamed script versions of test files to be more descriptive
 
-All API endpoints now accessible:
-- ✅ `/pipeline/translate`: Working correctly
-- ✅ `/pipeline/detect`: Working correctly
-- ✅ `/pipeline/simplify`: Implemented and working
-- ✅ `/pipeline/anonymize`: Implemented and working
-- ✅ `/pipeline/analyze`: Working correctly
-- ✅ `/pipeline/summarize`: Working correctly
+- **Tests Organization**:
+  - Organized tests into subdirectories based on functionality:
+    - `/tests/api/` for API-related tests
+    - `/tests/models/` for model-related tests
+    - `/tests/unit/` for unit tests
+  - Fixed imports and paths in moved files
 
-## Test plan
-- [x] Server starts up successfully with all models loaded
-- [x] Health endpoints report all models as healthy
-- [x] Translation endpoint works with auth bypass in development mode
-- [x] Health/detailed endpoint now returns proper 200 status
-- [x] Model registry properly reports available models
-- [x] Hardware detection and model configuration works for Apple Silicon
-- [x] Development mode can be easily set with included script
-- [x] Added test_direct_model_calls.py for testing models directly without API
-- [x] Fixed language detection response format to match expected output
-- [x] Implemented missing API endpoints for text simplification and anonymization
-- [x] Added comprehensive API endpoint testing tools (both Python and shell script)
+- **Test Results Organization**:
+  - Created a structured directory for test results:
+    - `/tests/results/api/` - For API test results
+    - `/tests/results/endpoints/` - For endpoint test logs
+    - `/tests/results/models/` - For model test results
+  - Updated `.gitignore` to exclude test result files
+
+- **Documentation Organization**:
+  - Moved documentation files to appropriate directories under `/docs/`
+
+- **Fixed Issues**:
+  - Updated imports and file paths to work with the new structure
+  - Removed hardcoded paths to improve portability
+  - Enhanced error handling in critical files
+
+## Testing
+The reorganization has been tested to ensure:
+- All imports continue to work correctly
+- Scripts can find their dependencies after being moved
+- No functionality has been lost
+- Test results are properly saved to their new locations
+
+## Notes
+This is a structural change only and does not alter any functionality. The goal is to make the codebase more maintainable and easier to navigate.

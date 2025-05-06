@@ -13,8 +13,7 @@ import json
 from typing import Dict, List, Any, Optional
 
 # Add the app directory to the Python path
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from fastapi.testclient import TestClient
 from app.main import app

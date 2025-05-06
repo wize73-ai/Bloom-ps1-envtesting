@@ -246,3 +246,18 @@ config/model_registry_local.json
 # Backup files
 *.bak
 *.backup
+
+# Test results
+tests/results/*
+tests/results/api/*
+tests/results/endpoints/*
+tests/results/models/*
+api_test_results_*.json
+endpoint_test_results_*.log
+*_test_results.json
+!tests/results/.gitkeep
+!tests/results/api/.gitkeep
+!tests/results/endpoints/.gitkeep
+!tests/results/models/.gitkeep
+
+**/.claude/settings.local.json
