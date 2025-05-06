@@ -17,6 +17,7 @@ class ModelInput(BaseModel):
     text: Union[str, List[str]]
     source_language: Optional[str] = None
     target_language: Optional[str] = None
+    context: Optional[List[str]] = Field(default_factory=list)
     parameters: Dict[str, Any] = Field(default_factory=dict)
 
 class ModelOutput(BaseModel):

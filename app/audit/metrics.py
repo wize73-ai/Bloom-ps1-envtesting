@@ -1041,6 +1041,57 @@ class MetricsCollector:
             "timestamp": datetime.now().isoformat()
         }
         
+    def record_translation_metrics(
+        self,
+        source_language: str,
+        target_language: str,
+        text_length: int,
+        processing_time: float,
+        model_id: str = "unknown"
+    ) -> None:
+        """
+        Record translation metrics.
+        
+        Args:
+            source_language: Source language code
+            target_language: Target language code
+            text_length: Length of the processed text
+            processing_time: Processing time in seconds
+            model_id: Model used for translation
+        
+        Returns:
+            None
+        """
+        if not self.enabled:
+            return
+            
+        # Use the language_operation method to record metrics
+        self.record_language_operation(
+            source_lang=source_language,
+            target_lang=target_language,
+            operation="translation",
+            duration=processing_time,
+            input_size=text_length,
+            output_size=text_length,  # Approximation, we don't have the actual output length
+            success=True
+        )
+        
+        # Record model usage if we have a model ID
+        if model_id and model_id != "unknown":
+            # Approximate token counts based on text length
+            # This is a rough estimate - 1 token ≈ 4 characters for English
+            input_tokens = max(1, text_length // 4)
+            output_tokens = max(1, text_length // 4)
+            
+            self.record_model_usage(
+                model_id=model_id,
+                operation="translation",
+                duration=processing_time,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True
+            )
+
     def get_time_series(
         self,
         series_name: str,
