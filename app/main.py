@@ -31,6 +31,7 @@ import logging
 import platform
 import torch
 import psutil
+import gc
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple, Literal
 from enum import Enum
@@ -1200,6 +1201,21 @@ async def lifespan(app: FastAPI):
             app_logger.error(error_msg, exc_info=True)
             console.print(f"[red]✗ {error_msg}[/red]")
             shutdown_errors.append(("cuda_cleanup", error_msg))
+        
+        # Clean up session manager
+        try:
+            app_logger.info("Cleaning up session manager...")
+            console.print("[cyan]Cleaning up session manager...[/cyan]")
+            from app.services.storage.session_manager import SessionManager
+            session_manager = SessionManager()
+            await session_manager.cleanup()
+            app_logger.info("✓ Session manager cleaned up")
+            console.print("[green]✓ Session manager cleaned up[/green]")
+        except Exception as session_error:
+            error_msg = f"Error during session manager cleanup: {str(session_error)}"
+            app_logger.error(error_msg, exc_info=True)
+            console.print(f"[red]✗ {error_msg}[/red]")
+            shutdown_errors.append(("session_manager", error_msg))
 
         # Log shutdown summary
         shutdown_time = time.time() - shutdown_start_time
@@ -1334,6 +1350,14 @@ app.include_router(pipeline_router, prefix="/pipeline", tags=["Pipeline"]) # Wit
 app.include_router(admin_router, prefix="/admin", tags=["Admin"])
 app.include_router(rag_router, prefix="/rag", tags=["RAG"])
 
+# Include RAG document routes for document indexing
+from app.api.routes.rag_documents import router as rag_documents_router
+app.include_router(rag_documents_router, prefix="/rag", tags=["RAG Documents"])
+
+# Include RAG sources routes for URL management
+from app.api.routes.rag_sources import router as rag_sources_router
+app.include_router(rag_sources_router, prefix="/rag/sources", tags=["RAG Sources"])
+
 # Include Bloom Housing compatibility router
 from app.api.routes.bloom_housing import router as bloom_housing_router
 app.include_router(bloom_housing_router)
@@ -1350,6 +1374,10 @@ app.include_router(verification_router, prefix="/verification", tags=["Verificat
 # Include document processing API routes
 from app.api.routes.document import router as document_router
 app.include_router(document_router, prefix="/document", tags=["Document Processing"])
+
+# Include RAG sources API routes
+from app.api.routes.rag_sources import router as rag_sources_router
+app.include_router(rag_sources_router, prefix="/rag", tags=["RAG Sources"])
 
 # Add new model management endpoint
 from fastapi import APIRouter
