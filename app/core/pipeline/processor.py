@@ -1101,6 +1101,233 @@ class UnifiedProcessor:
         # Perform language detection
         return await self.translation_pipeline.detect_language(request)
 
+    async def analyze_text(
+        self,
+        text: str,
+        language: str = "en",
+        include_sentiment: bool = True,
+        include_entities: bool = True,
+        include_topics: bool = False,
+        include_summary: bool = False,
+        model_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        request_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Analyze text for linguistic features such as sentiment, entities, topics, and summaries.
+        
+        Args:
+            text: Text to analyze
+            language: Language code (use 'auto' for auto-detection)
+            include_sentiment: Whether to include sentiment analysis
+            include_entities: Whether to include entity recognition
+            include_topics: Whether to include topic classification
+            include_summary: Whether to include text summarization
+            model_id: Optional model ID to use for analysis
+            user_id: Optional user ID for tracking
+            request_id: Optional request ID for tracking
+            
+        Returns:
+            Dict with analysis results
+        """
+        if not self.initialized:
+            await self.initialize()
+            
+        logger.info(f"Processing text analysis request {request_id}")
+        start_time = time.time()
+        
+        # Initialize result dictionary
+        result = {
+            "text": text,
+            "language": language,
+            "word_count": len(text.split()),
+            "sentence_count": len([s for s in text.split('.') if s.strip()]),
+            "model_id": model_id or "default"
+        }
+        
+        # Handle auto language detection
+        if language == "auto" or not language:
+            try:
+                detection_result = await self.detect_language(text)
+                language = detection_result.get("detected_language", "en")
+                result["language"] = language
+                result["language_confidence"] = detection_result.get("confidence", 0.0)
+                logger.debug(f"Detected language for analysis: {language}")
+            except Exception as e:
+                logger.warning(f"Language detection failed in analyze_text: {str(e)}")
+                language = "en"  # Fallback to English
+                result["language"] = language
+        
+        # Prepare analysis tasks
+        tasks = {}
+        
+        # Add sentiment analysis task
+        if include_sentiment:
+            logger.debug("Adding sentiment analysis task")
+            if hasattr(self.model_manager, "run_model"):
+                tasks["sentiment"] = self.model_manager.run_model(
+                    model_type="sentiment_analysis",
+                    method="analyze",
+                    input_data={
+                        "text": text,
+                        "language": language,
+                        "model_id": model_id
+                    }
+                )
+        
+        # Add entity recognition task
+        if include_entities:
+            logger.debug("Adding entity recognition task")
+            if hasattr(self.model_manager, "run_model"):
+                tasks["entities"] = self.model_manager.run_model(
+                    model_type="entity_recognition",
+                    method="recognize",
+                    input_data={
+                        "text": text,
+                        "language": language,
+                        "model_id": model_id
+                    }
+                )
+        
+        # Add topic classification task
+        if include_topics:
+            logger.debug("Adding topic classification task")
+            if hasattr(self.model_manager, "run_model"):
+                tasks["topics"] = self.model_manager.run_model(
+                    model_type="topic_classification",
+                    method="classify",
+                    input_data={
+                        "text": text,
+                        "language": language,
+                        "model_id": model_id
+                    }
+                )
+        
+        # Add summarization task
+        if include_summary:
+            logger.debug("Adding summarization task")
+            tasks["summary"] = self.process_summarization(
+                text=text,
+                language=language,
+                user_id=user_id,
+                request_id=request_id
+            )
+        
+        # Execute all tasks in parallel
+        task_results = {}
+        if tasks:
+            # Run all tasks concurrently and handle exceptions
+            results = await asyncio.gather(*tasks.values(), return_exceptions=True)
+            task_results = dict(zip(tasks.keys(), results))
+            
+            # Process sentiment result
+            if "sentiment" in task_results:
+                sentiment_result = task_results["sentiment"]
+                if isinstance(sentiment_result, Exception):
+                    logger.warning(f"Sentiment analysis failed: {str(sentiment_result)}")
+                else:
+                    result["sentiment"] = sentiment_result
+            
+            # Process entities result
+            if "entities" in task_results:
+                entities_result = task_results["entities"]
+                if isinstance(entities_result, Exception):
+                    logger.warning(f"Entity recognition failed: {str(entities_result)}")
+                else:
+                    result["entities"] = entities_result
+            
+            # Process topics result
+            if "topics" in task_results:
+                topics_result = task_results["topics"]
+                if isinstance(topics_result, Exception):
+                    logger.warning(f"Topic classification failed: {str(topics_result)}")
+                else:
+                    result["topics"] = topics_result
+            
+            # Process summary result
+            if "summary" in task_results:
+                summary_result = task_results["summary"]
+                if isinstance(summary_result, Exception):
+                    logger.warning(f"Summarization failed: {str(summary_result)}")
+                else:
+                    if isinstance(summary_result, dict) and "summary" in summary_result:
+                        result["summary"] = summary_result["summary"]
+                    else:
+                        result["summary"] = str(summary_result)
+        
+        # Fallback to rule-based sentiment if needed
+        if include_sentiment and "sentiment" not in result:
+            logger.info("Using rule-based sentiment analysis fallback")
+            import re
+            positive_words = {"good", "great", "excellent", "positive", "happy", "love", "like", "best", "wonderful"}
+            negative_words = {"bad", "terrible", "negative", "hate", "dislike", "worst", "awful", "poor"}
+            
+            # Simple word matching
+            words = re.findall(r'\w+', text.lower())
+            positive_count = sum(1 for word in words if word in positive_words)
+            negative_count = sum(1 for word in words if word in negative_words)
+            
+            # Calculate simple sentiment
+            total = positive_count + negative_count
+            if total > 0:
+                positive_score = positive_count / total
+                negative_score = negative_count / total
+            else:
+                positive_score = 0.5
+                negative_score = 0.5
+                
+            result["sentiment"] = {
+                "positive": positive_score,
+                "negative": negative_score,
+                "neutral": 1.0 - (positive_score + negative_score) if positive_score + negative_score < 1.0 else 0.0
+            }
+        
+        # Fallback to NER if needed
+        if include_entities and "entities" not in result:
+            logger.info("Using rule-based entity recognition fallback")
+            import re
+            
+            # Simple regex patterns for common entities
+            patterns = {
+                "email": r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+                "url": r'https?://[^\s]+',
+                "phone": r'\b\d{3}[-.]?\d{3}[-.]?\d{4}\b',
+                "date": r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b',
+                "money": r'\$\d+(?:\.\d{2})?'
+            }
+            
+            # Extract entities
+            entities = []
+            for entity_type, pattern in patterns.items():
+                matches = re.finditer(pattern, text)
+                for match in matches:
+                    entities.append({
+                        "text": match.group(),
+                        "start": match.start(),
+                        "end": match.end(),
+                        "type": entity_type,
+                        "confidence": 0.8  # Arbitrary confidence for regex matches
+                    })
+            
+            result["entities"] = entities
+        
+        # Calculate processing time
+        process_time = time.time() - start_time
+        result["process_time"] = process_time
+        
+        # Add metrics
+        result["performance_metrics"] = {
+            "analysis_time": process_time,
+            "input_size": len(text),
+            "sentiment_time": task_results.get("sentiment", {}).get("process_time", 0) if not isinstance(task_results.get("sentiment"), Exception) else 0,
+            "entity_time": task_results.get("entities", {}).get("process_time", 0) if not isinstance(task_results.get("entities"), Exception) else 0,
+            "topics_time": task_results.get("topics", {}).get("process_time", 0) if not isinstance(task_results.get("topics"), Exception) else 0,
+            "summary_time": task_results.get("summary", {}).get("process_time", 0) if not isinstance(task_results.get("summary"), Exception) else 0
+        }
+        
+        logger.info(f"Text analysis completed for request {request_id} in {process_time:.2f}s")
+        return result
+
     async def process_summarization(
         self,
         text: str,
@@ -1146,10 +1373,17 @@ class UnifiedProcessor:
         
         # Extract summary from result
         if isinstance(result, dict):
-            summary = result.get("summary", "")
+            # Check if summary exists and ensure it's a string type
+            summary_content = result.get("summary", "")
+            if isinstance(summary_content, dict):
+                # If summary is a dict, convert it to a string representation
+                summary = str(summary_content)
+            else:
+                summary = str(summary_content) if summary_content is not None else ""
+            
             model_id = result.get("model_used", "default")
         else:
-            summary = str(result)
+            summary = str(result) if result is not None else ""
             model_id = "default"
 
         return {
@@ -1366,3 +1600,366 @@ class UnifiedProcessor:
         
         logger.info(f"Completed batch translation of {len(texts)} texts")
         return batch_results
+        
+    async def analyze_text(
+        self,
+        text: str,
+        language: Optional[str] = None,
+        model_id: Optional[str] = None,
+        include_sentiment: bool = True,
+        include_entities: bool = True,
+        include_topics: bool = False,
+        include_summary: bool = False,
+        user_id: Optional[str] = None,
+        request_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Analyze text to extract linguistic features like sentiment, entities, topics, etc.
+        
+        Args:
+            text: Text to analyze
+            language: Language code (will auto-detect if not provided)
+            model_id: Optional specific model to use
+            include_sentiment: Whether to include sentiment analysis
+            include_entities: Whether to include named entity recognition
+            include_topics: Whether to include topic classification
+            include_summary: Whether to include text summarization
+            user_id: Optional user ID for tracking
+            request_id: Optional request ID for tracking
+            
+        Returns:
+            Dict with analysis results
+        """
+        if not self.initialized:
+            await self.initialize()
+            
+        logger.info(f"Analyzing text of length {len(text)} for request {request_id}")
+        
+        # Initialize result dictionary
+        result = {
+            "text": text,
+            "language": language or "auto",
+            "model_id": model_id or "default"
+        }
+        
+        start_time = time.time()
+        
+        # If language is not provided, detect it
+        if not language or language == "auto":
+            try:
+                detection_result = await self.detect_language(text[:1000], detailed=False)
+                if "detected_language" in detection_result:
+                    language = detection_result["detected_language"]
+                    result["language"] = language
+                    logger.debug(f"Detected language for analysis: {language}")
+            except Exception as e:
+                logger.warning(f"Language detection failed: {str(e)}")
+                language = "en"  # Fallback to English
+                result["language"] = language
+                
+        # Set up concurrent tasks for independent analyses
+        tasks = {}
+        
+        # 1. Sentiment analysis task
+        if include_sentiment:
+            tasks["sentiment"] = self._analyze_sentiment(text, language, model_id)
+            
+        # 2. Entity recognition task
+        if include_entities:
+            tasks["entities"] = self._analyze_entities(text, language, model_id)
+            
+        # 3. Topic classification task
+        if include_topics:
+            tasks["topics"] = self._analyze_topics(text, language, model_id)
+            
+        # 4. Summarization task
+        if include_summary:
+            tasks["summary"] = self._analyze_summary(text, language, model_id)
+        
+        # Execute all tasks concurrently
+        task_results = {}
+        if tasks:
+            # Run all tasks concurrently and handle exceptions
+            results = await asyncio.gather(*tasks.values(), return_exceptions=True)
+            task_results = dict(zip(tasks.keys(), results))
+            
+            # Process sentiment analysis result
+            if "sentiment" in task_results:
+                sentiment_result = task_results["sentiment"]
+                if isinstance(sentiment_result, Exception):
+                    logger.warning(f"Sentiment analysis failed: {str(sentiment_result)}")
+                else:
+                    result["sentiment"] = sentiment_result
+                    
+            # Process entity recognition result
+            if "entities" in task_results:
+                entities_result = task_results["entities"]
+                if isinstance(entities_result, Exception):
+                    logger.warning(f"Entity recognition failed: {str(entities_result)}")
+                else:
+                    result["entities"] = entities_result
+                    
+            # Process topic classification result
+            if "topics" in task_results:
+                topics_result = task_results["topics"]
+                if isinstance(topics_result, Exception):
+                    logger.warning(f"Topic classification failed: {str(topics_result)}")
+                else:
+                    result["topics"] = topics_result
+                    
+            # Process summarization result
+            if "summary" in task_results:
+                summary_result = task_results["summary"]
+                if isinstance(summary_result, Exception):
+                    logger.warning(f"Summarization failed: {str(summary_result)}")
+                else:
+                    result["summary"] = summary_result
+        
+        # Add text statistics
+        result["word_count"] = len(text.split())
+        result["sentence_count"] = len([s for s in text.split(".") if s.strip()])
+        
+        # Add process time
+        process_time = time.time() - start_time
+        result["process_time"] = process_time
+        
+        # Record metrics
+        try:
+            self.metrics.record_processing(
+                "text_analysis",
+                language or "unknown",
+                "none",
+                process_time
+            )
+        except Exception as e:
+            logger.warning(f"Failed to record metrics: {str(e)}")
+        
+        logger.info(f"Text analysis completed in {process_time:.2f}s for request {request_id}")
+        return result
+        
+    # Cache for model wrappers to avoid recreating them
+    _wrapper_cache = {}
+    
+    async def _analyze_sentiment(
+        self,
+        text: str,
+        language: str,
+        model_id: Optional[str] = None
+    ) -> Dict[str, float]:
+        """Analyze sentiment of text."""
+        logger.debug(f"Analyzing sentiment for text of length {len(text)}")
+        
+        try:
+            # Prepare input for sentiment analysis model
+            input_data = {
+                "text": text,
+                "language": language,
+                "parameters": {
+                    "model_name": model_id
+                }
+            }
+            
+            # Run sentiment analysis through model manager
+            sentiment_result = await self.model_manager.run_model(
+                "sentiment_analysis",  # Model type
+                "analyze",            # Method
+                input_data            # Input data
+            )
+            
+            # Extract sentiment scores
+            if isinstance(sentiment_result, dict):
+                if "sentiment" in sentiment_result:
+                    return sentiment_result["sentiment"]
+                elif "result" in sentiment_result:
+                    return sentiment_result["result"]
+                    
+            # Fallback to direct analysis
+            if hasattr(self.multipurpose_pipeline, "analyze_sentiment"):
+                fallback_result = await self.multipurpose_pipeline.analyze_sentiment(text, language)
+                if isinstance(fallback_result, dict) and "sentiment" in fallback_result:
+                    return fallback_result["sentiment"]
+                
+            # If all else fails, return basic sentiment
+            return {"positive": 0.33, "negative": 0.33, "neutral": 0.34}
+            
+        except Exception as e:
+            logger.error(f"Error analyzing sentiment: {str(e)}", exc_info=True)
+            raise
+            
+    async def _analyze_entities(
+        self,
+        text: str,
+        language: str,
+        model_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Extract named entities from text."""
+        logger.debug(f"Extracting entities from text of length {len(text)}")
+        
+        try:
+            # Prepare input for entity recognition model
+            input_data = {
+                "text": text,
+                "language": language,
+                "parameters": {
+                    "model_name": model_id
+                }
+            }
+            
+            # Run entity recognition through model manager
+            entity_result = await self.model_manager.run_model(
+                "entity_recognition",  # Model type
+                "extract",            # Method
+                input_data            # Input data
+            )
+            
+            # Extract entities
+            if isinstance(entity_result, dict):
+                if "entities" in entity_result:
+                    return entity_result["entities"]
+                elif "result" in entity_result:
+                    return entity_result["result"]
+                
+            # Fallback to anonymization pipeline's entity detection
+            if self.anonymization_pipeline:
+                try:
+                    anonymization_options = {"return_entities_only": True}
+                    _, entities = await self.anonymization_pipeline.process(
+                        text,
+                        language,
+                        anonymization_options
+                    )
+                    return entities
+                except Exception as anon_error:
+                    logger.warning(f"Anonymization pipeline entity extraction failed: {str(anon_error)}")
+            
+            # If no entities found, return empty list
+            return []
+            
+        except Exception as e:
+            logger.error(f"Error extracting entities: {str(e)}", exc_info=True)
+            raise
+            
+    async def _analyze_topics(
+        self,
+        text: str,
+        language: str,
+        model_id: Optional[str] = None
+    ) -> List[Dict[str, float]]:
+        """Classify topics in text."""
+        logger.debug(f"Classifying topics in text of length {len(text)}")
+        
+        try:
+            # Prepare input for topic classification model
+            input_data = {
+                "text": text,
+                "language": language,
+                "parameters": {
+                    "model_name": model_id
+                }
+            }
+            
+            # Run topic classification through model manager
+            topic_result = await self.model_manager.run_model(
+                "topic_classification",  # Model type
+                "classify",             # Method
+                input_data              # Input data
+            )
+            
+            # Extract topics
+            if isinstance(topic_result, dict):
+                if "topics" in topic_result:
+                    return topic_result["topics"]
+                elif "result" in topic_result and isinstance(topic_result["result"], list):
+                    return topic_result["result"]
+                
+            # If model isn't available, try simple keyword-based topic extraction
+            # This is just a fallback and not intended to be accurate
+            simple_topics = []
+            common_topics = {
+                "business": ["company", "market", "finance", "economy", "business"],
+                "technology": ["tech", "computer", "software", "hardware", "digital"],
+                "health": ["health", "medical", "doctor", "disease", "treatment"],
+                "politics": ["politics", "government", "policy", "election", "vote"],
+                "sports": ["sport", "team", "game", "player", "competition"],
+                "entertainment": ["movie", "music", "celebrity", "film", "show"]
+            }
+            
+            text_lower = text.lower()
+            for topic, keywords in common_topics.items():
+                count = sum(1 for keyword in keywords if keyword in text_lower)
+                if count > 0:
+                    confidence = min(0.95, 0.5 + (count / len(keywords) * 0.5))
+                    simple_topics.append({"topic": topic, "confidence": confidence})
+            
+            # Sort by confidence and return
+            return sorted(simple_topics, key=lambda x: x["confidence"], reverse=True)
+            
+        except Exception as e:
+            logger.error(f"Error classifying topics: {str(e)}", exc_info=True)
+            raise
+            
+    async def _analyze_summary(
+        self,
+        text: str,
+        language: str,
+        model_id: Optional[str] = None
+    ) -> str:
+        """Generate a summary of the text."""
+        logger.debug(f"Generating summary for text of length {len(text)}")
+        
+        try:
+            # Try using the summarization pipeline
+            if self.multipurpose_pipeline:
+                summary_result = await self.process_summarization(
+                    text=text,
+                    language=language
+                )
+                
+                if summary_result and isinstance(summary_result, dict) and "summary" in summary_result:
+                    return summary_result["summary"]
+                
+            # Fallback to direct model call
+            input_data = {
+                "text": text,
+                "language": language,
+                "parameters": {
+                    "model_name": model_id,
+                    "max_length": 150,
+                    "min_length": 40
+                }
+            }
+            
+            # Run summarization through model manager
+            try:
+                summary_result = await self.model_manager.run_model(
+                    "summarization",  # Model type
+                    "summarize",      # Method
+                    input_data        # Input data
+                )
+                
+                # Extract summary
+                if isinstance(summary_result, dict):
+                    if "summary" in summary_result:
+                        return summary_result["summary"]
+                    elif "result" in summary_result and isinstance(summary_result["result"], str):
+                        return summary_result["result"]
+                elif isinstance(summary_result, str):
+                    return summary_result
+            except Exception as model_error:
+                logger.warning(f"Summarization model failed: {str(model_error)}")
+            
+            # If all else fails, generate a simple extractive summary
+            # by selecting the first sentence and a middle sentence
+            sentences = [s.strip() for s in text.split(".") if s.strip()]
+            if len(sentences) <= 2:
+                return text
+            
+            first_sentence = sentences[0]
+            middle_sentence = sentences[len(sentences) // 2]
+            
+            simple_summary = f"{first_sentence}. {middle_sentence}."
+            return simple_summary
+            
+        except Exception as e:
+            logger.error(f"Error generating summary: {str(e)}", exc_info=True)
+            raise

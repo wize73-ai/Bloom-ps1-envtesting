@@ -16,6 +16,7 @@ import uuid
 import logging
 import os
 import asyncio
+import re
 from typing import Dict, List, Any, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Path, Body, Request, status, File, UploadFile, Form
 from pydantic import BaseModel, Field, validator
@@ -769,12 +770,12 @@ async def simplify_text(
                 elif simplification_result is None:
                     # Run direct test simplified text
                     logger.warning("Simplification fallback: using rule-based simplification")
-                    simplified_text = self._basic_simplify(simplification_request.text)
+                    simplified_text = _basic_simplify(simplification_request.text)
                 else:
                     simplified_text = str(simplification_result)
             except Exception as e:
                 logger.error(f"Simplification error, using fallback: {str(e)}")
-                simplified_text = self._basic_simplify(simplification_request.text)
+                simplified_text = _basic_simplify(simplification_request.text)
         
         # Calculate process time
         process_time = time.time() - start_time
@@ -1393,7 +1394,7 @@ async def summarize_text(
             detail=f"Summarization error: {str(e)}"
         )
         
-def _basic_simplify(self, text: str) -> str:
+def _basic_simplify(text: str) -> str:
     """
     Basic rule-based text simplification as fallback when ML model fails.
     This is a very simple implementation that:

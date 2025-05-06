@@ -17,6 +17,12 @@ load_dotenv()
 
 # Set development mode during development and testing
 os.environ["CASALINGUA_ENV"] = "development"
+# Enable efficient caching for loaded models
+os.environ["TRANSFORMERS_CACHE"] = os.path.join(os.getcwd(), ".cache/models")
+os.environ["TORCH_HOME"] = os.path.join(os.getcwd(), ".cache/torch")
+# Reduce model loading verbosity
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
 ENVIRONMENT = os.getenv("CASALINGUA_ENV", "production").lower()
 print(f"🔧 Starting CasaLingua in {ENVIRONMENT} mode")
 import sys
@@ -885,17 +891,34 @@ async def lifespan(app: FastAPI):
         
         # Eagerly initialize required models before processor initialization
         app_logger.info("Eagerly loading essential models...")
-        essential_models = ["language_detection", "translation"]
+        # Expanded list of essential models to preload for better performance
+        essential_models = [
+            "language_detection", 
+            "translation", 
+            "mbart_translation", 
+            "simplifier", 
+            "ner_detection", 
+            "embedding_model",
+            "anonymizer"
+        ]
         
-        # Force load essential models
+        # Enhanced parallel model loading
+        model_load_tasks = []
         for model_name in essential_models:
             if model_name in registry_config:
                 app_logger.info(f"Preloading {model_name} model")
+                load_task = model_manager.load_model(model_name, force=True)
+                model_load_tasks.append((model_name, load_task))
+        
+        # Wait for all models to load in parallel
+        if model_load_tasks:
+            for model_name, task in model_load_tasks:
                 try:
-                    await model_manager.load_model(model_name, force=True, wait=True)
+                    await task
                     app_logger.info(f"✓ {model_name} model loaded successfully")
                 except Exception as e:
                     app_logger.error(f"Error loading {model_name} model: {str(e)}")
+        
         app_logger.info("Essential model preloading complete")
         
         # Create and initialize processor

@@ -10,6 +10,7 @@ class TextAnalysisRequest(BaseModel):
     include_topics: bool = False
     include_summary: bool = False
     analyses: Optional[List[str]] = None  # Added for compatibility with test scripts
+    model_id: Optional[str] = None  # Added to fix the analyze endpoint
 
 class TextAnalysisResult(BaseModel):
     text: str
