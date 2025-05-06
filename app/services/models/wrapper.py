@@ -31,6 +31,19 @@ class ModelType(str, Enum):
     RAG_GENERATOR = "rag_generator"
     RAG_RETRIEVER = "rag_retriever"
     ANONYMIZER = "anonymizer"
+    
+# Define wrapper_map at module level so it can be accessed by fix_circular_import
+wrapper_map = {
+    "translation": None,  # Will be set below
+    "mbart_translation": None,  # Will be set below
+    "language_detection": None,  # Will be set below
+    "ner_detection": None,  # Will be set below
+    "rag_generator": None,  # Will be set below
+    "rag_retriever": None,  # Will be set below 
+    "simplifier": None,  # Will be set below
+    "anonymizer": None,  # Will be set below
+    "embedding_model": None  # Will be patched at import time
+}
 
 class TranslationModelWrapper(BaseModelWrapper):
     """Wrapper for translation models"""
@@ -737,7 +750,9 @@ def get_wrapper_for_model(model_type: str, model, tokenizer, config: Dict[str, A
     Returns:
         BaseModelWrapper: Appropriate model wrapper
     """
-    wrapper_map = {
+    # Update the global wrapper_map with the actual wrapper classes
+    global wrapper_map
+    wrapper_map.update({
         "translation": TranslationModelWrapper,
         "mbart_translation": TranslationModelWrapper,  # Use TranslationModelWrapper for MBART
         "language_detection": LanguageDetectionWrapper,
@@ -746,8 +761,8 @@ def get_wrapper_for_model(model_type: str, model, tokenizer, config: Dict[str, A
         "rag_retriever": RAGRetrieverWrapper,
         "simplifier": SimplifierWrapper,
         "anonymizer": AnonymizerWrapper,
-        "embedding_model": None  # Will be patched at import time
-    }
+        # "embedding_model" will be patched at import time
+    })
     
     if model_type in wrapper_map:
         wrapper_class = wrapper_map[model_type]

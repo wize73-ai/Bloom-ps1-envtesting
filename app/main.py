@@ -17,6 +17,12 @@ load_dotenv()
 
 # Set development mode during development and testing
 os.environ["CASALINGUA_ENV"] = "development"
+# Enable efficient caching for loaded models
+os.environ["TRANSFORMERS_CACHE"] = os.path.join(os.getcwd(), ".cache/models")
+os.environ["TORCH_HOME"] = os.path.join(os.getcwd(), ".cache/torch")
+# Reduce model loading verbosity
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
+os.environ["TOKENIZERS_PARALLELISM"] = "true"
 ENVIRONMENT = os.getenv("CASALINGUA_ENV", "production").lower()
 print(f"🔧 Starting CasaLingua in {ENVIRONMENT} mode")
 import sys
@@ -25,6 +31,7 @@ import logging
 import platform
 import torch
 import psutil
+import gc
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple, Literal
 from enum import Enum
@@ -885,17 +892,34 @@ async def lifespan(app: FastAPI):
         
         # Eagerly initialize required models before processor initialization
         app_logger.info("Eagerly loading essential models...")
-        essential_models = ["language_detection", "translation"]
+        # Expanded list of essential models to preload for better performance
+        essential_models = [
+            "language_detection", 
+            "translation", 
+            "mbart_translation", 
+            "simplifier", 
+            "ner_detection", 
+            "embedding_model",
+            "anonymizer"
+        ]
         
-        # Force load essential models
+        # Enhanced parallel model loading
+        model_load_tasks = []
         for model_name in essential_models:
             if model_name in registry_config:
                 app_logger.info(f"Preloading {model_name} model")
+                load_task = model_manager.load_model(model_name, force=True)
+                model_load_tasks.append((model_name, load_task))
+        
+        # Wait for all models to load in parallel
+        if model_load_tasks:
+            for model_name, task in model_load_tasks:
                 try:
-                    await model_manager.load_model(model_name, force=True, wait=True)
+                    await task
                     app_logger.info(f"✓ {model_name} model loaded successfully")
                 except Exception as e:
                     app_logger.error(f"Error loading {model_name} model: {str(e)}")
+        
         app_logger.info("Essential model preloading complete")
         
         # Create and initialize processor
@@ -1177,6 +1201,21 @@ async def lifespan(app: FastAPI):
             app_logger.error(error_msg, exc_info=True)
             console.print(f"[red]✗ {error_msg}[/red]")
             shutdown_errors.append(("cuda_cleanup", error_msg))
+        
+        # Clean up session manager
+        try:
+            app_logger.info("Cleaning up session manager...")
+            console.print("[cyan]Cleaning up session manager...[/cyan]")
+            from app.services.storage.session_manager import SessionManager
+            session_manager = SessionManager()
+            await session_manager.cleanup()
+            app_logger.info("✓ Session manager cleaned up")
+            console.print("[green]✓ Session manager cleaned up[/green]")
+        except Exception as session_error:
+            error_msg = f"Error during session manager cleanup: {str(session_error)}"
+            app_logger.error(error_msg, exc_info=True)
+            console.print(f"[red]✗ {error_msg}[/red]")
+            shutdown_errors.append(("session_manager", error_msg))
 
         # Log shutdown summary
         shutdown_time = time.time() - shutdown_start_time
@@ -1311,6 +1350,14 @@ app.include_router(pipeline_router, prefix="/pipeline", tags=["Pipeline"]) # Wit
 app.include_router(admin_router, prefix="/admin", tags=["Admin"])
 app.include_router(rag_router, prefix="/rag", tags=["RAG"])
 
+# Include RAG document routes for document indexing
+from app.api.routes.rag_documents import router as rag_documents_router
+app.include_router(rag_documents_router, prefix="/rag", tags=["RAG Documents"])
+
+# Include RAG sources routes for URL management
+from app.api.routes.rag_sources import router as rag_sources_router
+app.include_router(rag_sources_router, prefix="/rag/sources", tags=["RAG Sources"])
+
 # Include Bloom Housing compatibility router
 from app.api.routes.bloom_housing import router as bloom_housing_router
 app.include_router(bloom_housing_router)
@@ -1323,6 +1370,14 @@ app.include_router(streaming_router)
 from app.api.routes.verification import router as verification_router
 app.include_router(verification_router, tags=["Verification"])
 app.include_router(verification_router, prefix="/verification", tags=["Verification"])
+
+# Include document processing API routes
+from app.api.routes.document import router as document_router
+app.include_router(document_router, prefix="/document", tags=["Document Processing"])
+
+# Include RAG sources API routes
+from app.api.routes.rag_sources import router as rag_sources_router
+app.include_router(rag_sources_router, prefix="/rag", tags=["RAG Sources"])
 
 # Add new model management endpoint
 from fastapi import APIRouter

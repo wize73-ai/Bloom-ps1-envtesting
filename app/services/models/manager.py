@@ -383,6 +383,9 @@ class EnhancedModelManager:
         # Load the model
         return await self.load_model(model_type_str)
     
+    # Add a wrapper cache to avoid recreating wrappers for the same model
+    _wrapper_cache = {}
+    
     async def run_model(self, model_type: str, method_name: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Run a model with the specified method and input data
@@ -395,7 +398,8 @@ class EnhancedModelManager:
         Returns:
             Dict[str, Any]: Model output
         """
-        logger.info(f"Running model {model_type}.{method_name}")
+        # Use a more detailed log level to reduce verbose logging
+        logger.debug(f"Running model {model_type}.{method_name}")
         
         # Ensure the model is loaded
         if model_type not in self.loaded_models:
@@ -428,16 +432,26 @@ class EnhancedModelManager:
             parameters=parameters
         )
         
-        # Import wrapper factory function
-        from app.services.models.wrapper import create_model_wrapper
-        
-        # Create wrapper for the model
-        wrapper = create_model_wrapper(
-            model_type,
-            model,
-            tokenizer,
-            {"task": model_type, "device": self.device, "precision": self.precision}
-        )
+        # Use cached wrapper if available to avoid recreating it each time
+        cache_key = f"{model_type}_{self.device}_{self.precision}"
+        if cache_key in self._wrapper_cache:
+            logger.debug(f"Using cached wrapper for {model_type}")
+            wrapper = self._wrapper_cache[cache_key]
+        else:
+            # Import wrapper factory function
+            from app.services.models.wrapper import create_model_wrapper
+            
+            # Create wrapper for the model
+            logger.debug(f"Creating new wrapper for {model_type}")
+            wrapper = create_model_wrapper(
+                model_type,
+                model,
+                tokenizer,
+                {"task": model_type, "device": self.device, "precision": self.precision}
+            )
+            
+            # Cache the wrapper for future use
+            self._wrapper_cache[cache_key] = wrapper
         
         # Call the appropriate method
         if method_name == "process":

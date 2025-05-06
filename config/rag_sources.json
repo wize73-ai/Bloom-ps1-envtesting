@@ -1,5 +1,87 @@
 {
-    "github_repos": [
-      "https://github.com/bloom-housing/bloom"
-    ]
+  "github_repos": [
+    "https://github.com/bloom-housing/bloom"
+  ],
+  "sources": [
+    {
+      "id": "1f3d7c2a-8e5b-4f2a-b8c6-a9e4d0f1b2c3",
+      "url": "https://github.com/bloom-housing/bloom",
+      "source_type": "github_repo",
+      "status": "active",
+      "created_at": "2023-10-01T00:00:00Z",
+      "updated_at": "2023-10-01T00:00:00Z",
+      "processing_frequency": "weekly",
+      "options": {
+        "extract_links": true,
+        "max_depth": 1,
+        "content_format": "auto",
+        "extract_text_only": true,
+        "chunk_size": 500,
+        "chunk_overlap": 50
+      },
+      "metadata": {
+        "title": "Bloom Housing Repository",
+        "description": "Code repository for Bloom Housing platform",
+        "language": "en",
+        "tags": ["housing", "code", "bloom"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "2d4e8f3a-9f6c-5g3b-c9d7-b0e5f1c2d3e4",
+      "url": "https://docs.bloom.housing/",
+      "source_type": "webpage",
+      "status": "active",
+      "created_at": "2023-10-01T00:00:00Z",
+      "updated_at": "2023-10-01T00:00:00Z",
+      "processing_frequency": "weekly",
+      "options": {
+        "extract_links": true,
+        "max_depth": 2,
+        "content_format": "html",
+        "extract_text_only": true,
+        "chunk_size": 500,
+        "chunk_overlap": 50
+      },
+      "metadata": {
+        "title": "Bloom Housing Documentation",
+        "description": "Official documentation for Bloom Housing platform",
+        "language": "en",
+        "tags": ["housing", "documentation", "bloom"]
+      },
+      "enabled": true
+    },
+    {
+      "id": "3e5f9g4b-0g7d-6h4c-d0e8-c1f2g3h4i5j6",
+      "url": "https://www.hud.gov/topics/rental_assistance",
+      "source_type": "webpage",
+      "status": "active",
+      "created_at": "2023-10-01T00:00:00Z",
+      "updated_at": "2023-10-01T00:00:00Z",
+      "processing_frequency": "monthly",
+      "options": {
+        "extract_links": false,
+        "max_depth": 1,
+        "content_format": "html",
+        "extract_text_only": true,
+        "chunk_size": 1000,
+        "chunk_overlap": 200
+      },
+      "metadata": {
+        "title": "Housing Rights Guide",
+        "description": "Official information about rental assistance from HUD",
+        "language": "en",
+        "tags": ["housing", "rights", "legal", "assistance"]
+      },
+      "enabled": true
+    }
+  ],
+  "global_settings": {
+    "max_content_size_mb": 10,
+    "fetch_timeout_seconds": 30,
+    "default_chunk_size": 500,
+    "default_chunk_overlap": 50,
+    "rate_limit_delay_seconds": 1.0,
+    "content_cache_ttl_seconds": 86400
   }
+}
