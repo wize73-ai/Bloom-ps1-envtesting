@@ -908,7 +908,7 @@ async def lifespan(app: FastAPI):
         for model_name in essential_models:
             if model_name in registry_config:
                 app_logger.info(f"Preloading {model_name} model")
-                load_task = model_manager.load_model(model_name, force=True)
+                load_task = model_manager.load_model(model_name)
                 model_load_tasks.append((model_name, load_task))
         
         # Wait for all models to load in parallel
@@ -923,9 +923,13 @@ async def lifespan(app: FastAPI):
         app_logger.info("Essential model preloading complete")
         
         # Create and initialize processor
-        processor = UnifiedProcessor(model_manager, audit_logger, metrics, config, 
-                                    persistence_manager=persistence_manager, 
-                                    registry_config=registry_config)
+        processor = UnifiedProcessor(model_manager, config=config, registry_config=registry_config)
+        
+        # Store audit_logger, metrics, and persistence_manager as properties
+        processor.audit_logger = audit_logger
+        processor.metrics = metrics
+        processor.metrics_collector = metrics  # For backward compatibility
+        processor.persistence_manager = persistence_manager
         await processor.initialize()
         app_logger.info("✓ Processing pipeline ready")
 
@@ -976,6 +980,18 @@ async def lifespan(app: FastAPI):
         app.state.metrics = metrics
         app.state.logger = app_logger
         # tokenizer_pipeline is now available as app.state.tokenizer for the app
+        
+        # Initialize session manager cleanup task
+        app_logger.info("Initializing session manager cleanup task...")
+        try:
+            from app.services.storage.session_manager import SessionManager
+            session_manager = SessionManager()
+            await session_manager.start_cleanup_task()
+            app_logger.info("✓ Session manager cleanup task started")
+        except Exception as e:
+            app_logger.error(f"Error starting session manager cleanup task: {str(e)}", exc_info=True)
+            console.print(f"[yellow]⚠ Warning: Error starting session manager cleanup task: {str(e)}[/yellow]")
+        
         # Hardware Summary Table
         table = Table(title="🔍 Hardware Summary", style="bold blue")
         table.add_column("Component", style="cyan", no_wrap=True)
