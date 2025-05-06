@@ -1394,6 +1394,261 @@ async def summarize_text(
             detail=f"Summarization error: {str(e)}"
         )
         
+# ----- Text-to-Speech Endpoints -----
+
+from app.api.schemas.analysis import TTSRequest, TTSResult, TTSResponse, VoiceInfoResponse
+from fastapi.responses import FileResponse
+
+
+@router.post(
+    "/tts", 
+    response_model=TTSResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Convert text to speech",
+    description="Converts text to synthesized speech audio."
+)
+async def text_to_speech(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    tts_request: TTSRequest = Body(...),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Convert text to synthesized speech.
+    
+    This endpoint processes text and returns a URL to an audio file
+    containing the synthesized speech.
+    """
+    start_time = time.time()
+    request_id = str(uuid.uuid4())
+    
+    try:
+        # Get application components from state
+        processor = request.app.state.processor
+        if processor is None:
+            raise HTTPException(status_code=503, detail="Processor not initialized")
+        metrics = request.app.state.metrics
+        audit_logger = request.app.state.audit_logger
+        
+        # Log request to audit log
+        await audit_logger.log_api_request(
+            endpoint="/pipeline/tts",
+            method="POST",
+            user_id=current_user["id"],
+            source_ip=request.client.host,
+            request_id=request_id,
+            request_params={
+                "text_length": len(tts_request.text),
+                "language": tts_request.language,
+                "voice": tts_request.voice,
+                "speed": tts_request.speed,
+                "pitch": tts_request.pitch,
+                "output_format": tts_request.output_format,
+                "model_id": tts_request.model_id
+            }
+        )
+        
+        # Process text-to-speech request
+        synthesis_result = await processor.synthesize_speech(
+            text=tts_request.text,
+            language=tts_request.language,
+            voice=tts_request.voice,
+            speed=tts_request.speed,
+            pitch=tts_request.pitch,
+            output_format=tts_request.output_format,
+            model_id=tts_request.model_id,
+            user_id=current_user["id"],
+            request_id=request_id
+        )
+        
+        # Calculate process time
+        process_time = time.time() - start_time
+        
+        # Record metrics in background
+        background_tasks.add_task(
+            metrics.record_pipeline_execution,
+            pipeline_id="tts",
+            operation="synthesize",
+            duration=process_time,
+            input_size=len(tts_request.text),
+            output_size=synthesis_result.get("filesize", 0),
+            success=True,
+            metadata={
+                "language": tts_request.language,
+                "voice": synthesis_result.get("voice", tts_request.voice),
+                "model_id": synthesis_result.get("model_used", "tts"),
+                "output_format": tts_request.output_format,
+                "audio_duration": synthesis_result.get("duration", 0.0)
+            }
+        )
+        
+        # Create result model
+        result = TTSResult(
+            text=tts_request.text,
+            language=tts_request.language,
+            voice=synthesis_result.get("voice", "default"),
+            audio_url=synthesis_result.get("audio_url", ""),
+            audio_file=synthesis_result.get("audio_file", ""),
+            format=synthesis_result.get("format", tts_request.output_format),
+            duration=synthesis_result.get("duration", 0.0),
+            process_time=process_time,
+            model_used=synthesis_result.get("model_used", "tts"),
+            fallback=synthesis_result.get("fallback", False),
+            performance_metrics=synthesis_result.get("performance_metrics"),
+            memory_usage=synthesis_result.get("memory_usage"),
+            operation_cost=synthesis_result.get("operation_cost", 0.0)
+        )
+        
+        # Create response
+        response = BaseResponse(
+            status=StatusEnum.SUCCESS,
+            message="Speech synthesis completed successfully",
+            data=result,
+            metadata=MetadataModel(
+                request_id=request_id,
+                timestamp=time.time(),
+                version=request.app.state.config.get("version", "1.0.0"),
+                process_time=process_time
+            ),
+            errors=None,
+            pagination=None
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Speech synthesis error: {str(e)}", exc_info=True)
+        
+        # Record error metrics in background
+        background_tasks.add_task(
+            metrics.record_pipeline_execution,
+            pipeline_id="tts",
+            operation="synthesize",
+            duration=time.time() - start_time,
+            input_size=len(tts_request.text),
+            output_size=0,
+            success=False,
+            metadata={
+                "error": str(e),
+                "language": tts_request.language,
+                "voice": tts_request.voice
+            }
+        )
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Speech synthesis error: {str(e)}"
+        )
+
+
+@router.get(
+    "/tts/voices",
+    response_model=VoiceInfoResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get available TTS voices",
+    description="Returns a list of available voices for speech synthesis."
+)
+async def get_tts_voices(
+    request: Request,
+    language: Optional[str] = Query(None, description="Filter voices by language"),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Get available voices for speech synthesis.
+    
+    This endpoint returns a list of available voices for speech synthesis,
+    optionally filtered by language.
+    """
+    try:
+        # Get application components from state
+        processor = request.app.state.processor
+        if processor is None:
+            raise HTTPException(status_code=503, detail="Processor not initialized")
+        
+        # Get available voices
+        voice_result = await processor.get_available_voices(language)
+        
+        # Create response
+        response = BaseResponse(
+            status=StatusEnum.SUCCESS,
+            message="Available voices retrieved successfully",
+            data=voice_result,
+            metadata=MetadataModel(
+                request_id=str(uuid.uuid4()),
+                timestamp=time.time(),
+                version=request.app.state.config.get("version", "1.0.0")
+            ),
+            errors=None,
+            pagination=None
+        )
+        
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error getting TTS voices: {str(e)}", exc_info=True)
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error getting TTS voices: {str(e)}"
+        )
+
+
+@router.get(
+    "/audio/{filename}",
+    response_class=FileResponse,
+    summary="Get audio file",
+    description="Returns the audio file generated by TTS."
+)
+async def get_audio_file(
+    request: Request,
+    filename: str = Path(..., description="Audio filename"),
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Get an audio file generated by TTS.
+    
+    This endpoint returns the audio file for streaming or download.
+    """
+    try:
+        # Get temp directory from processor
+        processor = request.app.state.processor
+        if processor is None:
+            raise HTTPException(status_code=503, detail="Processor not initialized")
+        
+        # Construct the file path
+        file_path = processor.temp_dir / "audio" / filename
+        
+        # Check if the file exists
+        if not file_path.exists():
+            raise HTTPException(status_code=404, detail="Audio file not found")
+        
+        # Get the file type for content-type header
+        file_extension = filename.split(".")[-1].lower()
+        content_type_map = {
+            "mp3": "audio/mpeg",
+            "wav": "audio/wav",
+            "ogg": "audio/ogg"
+        }
+        content_type = content_type_map.get(file_extension, "application/octet-stream")
+        
+        # Return the file
+        return FileResponse(
+            path=str(file_path),
+            media_type=content_type,
+            filename=filename
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving audio file: {str(e)}", exc_info=True)
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error serving audio file: {str(e)}"
+        )
+
+
 def _basic_simplify(text: str) -> str:
     """
     Basic rule-based text simplification as fallback when ML model fails.

@@ -513,6 +513,9 @@ The recent fixes to circular imports, endpoint implementation, and model caching
 | `/pipeline/anonymize` | POST | PII anonymization |
 | `/pipeline/summarize` | POST | Text summarization |
 | `/pipeline/analyze` | POST | Text analysis |
+| `/pipeline/tts` | POST | Text-to-speech conversion |
+| `/pipeline/tts/voices` | GET | Available TTS voices |
+| `/audio/{filename}` | GET | Access to generated audio files |
 | `/rag/query` | POST | Knowledge-base queries |
 | `/metrics` | GET | System metrics |
 

@@ -815,15 +815,20 @@ class UnifiedProcessor:
             return None
         
         try:
+            import os
             # Prepare parameters for TTS
             voice = options.get("voice")
             speed = options.get("speed", 1.0)
             pitch = options.get("pitch", 1.0)
             output_format = options.get("audio_format", "mp3")
             
+            # Make sure audio directory exists
+            audio_dir = self.temp_dir / "audio"
+            audio_dir.mkdir(parents=True, exist_ok=True)
+            
             # Generate unique filename
             request_id = options.get("request_id", str(uuid.uuid4()))
-            output_path = str(self.temp_dir / "audio" / f"tts_{request_id}.{output_format}")
+            output_path = str(audio_dir / f"tts_{request_id}.{output_format}")
             
             # Generate speech using TTS pipeline
             tts_result = await self.tts_pipeline.synthesize(
@@ -1100,6 +1105,102 @@ class UnifiedProcessor:
         
         # Perform language detection
         return await self.translation_pipeline.detect_language(request)
+
+    async def synthesize_speech(
+        self,
+        text: str,
+        language: str = "en",
+        voice: Optional[str] = None,
+        speed: float = 1.0,
+        pitch: float = 1.0,
+        output_format: str = "mp3",
+        model_id: Optional[str] = None,
+        user_id: Optional[str] = None,
+        request_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Convert text to speech using the TTS pipeline.
+        
+        Args:
+            text: Text to convert to speech
+            language: Language code
+            voice: Voice identifier (if None, uses default for language)
+            speed: Speech rate multiplier (0.5-2.0)
+            pitch: Voice pitch adjustment (0.5-2.0)
+            output_format: Output audio format (mp3, wav, ogg)
+            model_id: Optional model ID to use
+            user_id: Optional user ID for tracking
+            request_id: Optional request ID for tracking
+            
+        Returns:
+            Dict with synthesis results
+        """
+        if not self.initialized:
+            await self.initialize()
+            
+        logger.info(f"Processing text-to-speech request {request_id}")
+        start_time = time.time()
+
+        # Initialize TTS pipeline if not already done
+        if not self.tts_pipeline:
+            logger.warning("TTS pipeline not initialized, initializing now")
+            await self._initialize_tts_pipeline()
+            
+        # Prepare options dict
+        options = {
+            "voice": voice,
+            "speed": speed,
+            "pitch": pitch,
+            "audio_format": output_format,
+            "user_id": user_id,
+            "request_id": request_id,
+            "model_id": model_id
+        }
+        
+        # Generate speech using internal method
+        tts_result = await self._generate_speech(text, language, options)
+        
+        if not tts_result:
+            raise ValueError("Speech synthesis failed")
+            
+        # Add process time and input text to result
+        process_time = time.time() - start_time
+        tts_result["process_time"] = process_time
+        tts_result["text"] = text
+        tts_result["language"] = language
+        
+        # Add performance metrics
+        tts_result["performance_metrics"] = {
+            "synthesis_time": process_time,
+            "text_length": len(text),
+            "audio_duration": tts_result.get("duration", 0)
+        }
+        
+        return tts_result
+        
+    async def get_available_voices(
+        self,
+        language: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Get available voices for speech synthesis.
+        
+        Args:
+            language: Optional language code to filter voices
+            
+        Returns:
+            Dict with available voices
+        """
+        if not self.initialized:
+            await self.initialize()
+            
+        # Initialize TTS pipeline if not already done
+        if not self.tts_pipeline:
+            logger.warning("TTS pipeline not initialized, initializing now")
+            await self._initialize_tts_pipeline()
+            
+        # Get voices from TTS pipeline
+        return await self.tts_pipeline.get_available_voices(language)
 
     async def analyze_text(
         self,
