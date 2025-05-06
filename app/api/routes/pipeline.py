@@ -1,3 +1,33 @@
+"""
+Pipeline API endpoints for CasaLingua.
+These endpoints provide access to the main document and speech processing pipelines.
+"""
+
+import os
+import time
+import uuid
+import logging
+from typing import Dict, List, Any, Optional, AsyncIterator
+import asyncio
+
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request, File, Form, UploadFile, status
+from pydantic import BaseModel
+
+from app.api.middleware.auth import get_current_user
+from app.api.schemas.speech import STTResponse, STTRequest, STTResult, SupportedLanguagesResponse
+from app.api.schemas.base import BaseResponse, StatusEnum, MetadataModel
+from app.utils.logging import get_logger
+
+# Initialize logger
+logger = get_logger(__name__)
+
+# Create router
+router = APIRouter(
+    prefix="/pipeline",
+    tags=["pipeline"],
+    responses={404: {"description": "Not found"}},
+)
+
 # ----- Speech-to-Text Endpoint -----
 
 @router.post(
