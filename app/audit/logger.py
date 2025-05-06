@@ -854,6 +854,433 @@ class AuditLogger:
             limit=limit
         )
         
+    async def log_language_detection(
+        self,
+        user_id: Optional[str] = None,
+        text_length: Optional[int] = None,
+        detected_language: Optional[str] = None,
+        confidence: Optional[float] = None,
+        model_id: Optional[str] = None,
+        processing_time: Optional[float] = None,
+        request_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Log a language detection operation.
+        
+        Args:
+            user_id: User identifier
+            text_length: Length of the processed text
+            detected_language: The detected language code
+            confidence: Detection confidence score
+            model_id: Model used for detection
+            processing_time: Processing time in seconds
+            request_id: Request identifier
+            correlation_id: Identifier for correlating related operations
+            metadata: Additional metadata about the detection operation
+            
+        Returns:
+            Audit log entry ID
+        """
+        if not self.enabled:
+            return ""
+            
+        # Generate log entry ID
+        entry_id = str(uuid.uuid4())
+        
+        # Create log entry
+        log_entry = {
+            "id": entry_id,
+            "timestamp": datetime.now().isoformat(),
+            "type": "language_detection",
+            "user_id": user_id,
+            "request_id": request_id or str(uuid.uuid4()),
+            "text_length": text_length,
+            "language": detected_language,
+            "detected_language": detected_language,
+            "confidence": confidence,
+            "model_id": model_id,
+            "processing_time": processing_time,
+            "correlation_id": correlation_id or str(uuid.uuid4()),
+            "metadata": self._sanitize_sensitive_data(metadata or {})
+        }
+        
+        # Add to buffer
+        with self.lock:
+            self.log_buffer.append(log_entry)
+            
+        return entry_id
+        
+    async def log_simplification(
+        self,
+        user_id: Optional[str] = None,
+        text_length: Optional[int] = None,
+        simplified_length: Optional[int] = None,
+        language: Optional[str] = None,
+        level: Optional[str] = None,
+        model_id: Optional[str] = None,
+        processing_time: Optional[float] = None,
+        request_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Log a text simplification operation.
+        
+        Args:
+            user_id: User identifier
+            text_length: Length of the original text
+            simplified_length: Length of the simplified text
+            language: Language of the text
+            level: Simplification level (e.g., "simple", "medium")
+            model_id: Model used for simplification
+            processing_time: Processing time in seconds
+            request_id: Request identifier
+            correlation_id: Identifier for correlating related operations
+            metadata: Additional metadata about the simplification
+            
+        Returns:
+            Audit log entry ID
+        """
+        if not self.enabled:
+            return ""
+            
+        # Generate log entry ID
+        entry_id = str(uuid.uuid4())
+        
+        # Create log entry
+        log_entry = {
+            "id": entry_id,
+            "timestamp": datetime.now().isoformat(),
+            "type": "simplification",
+            "user_id": user_id,
+            "request_id": request_id or str(uuid.uuid4()),
+            "text_length": text_length,
+            "simplified_length": simplified_length,
+            "language": language,
+            "level": level,
+            "model_id": model_id,
+            "processing_time": processing_time,
+            "correlation_id": correlation_id or str(uuid.uuid4()),
+            "metadata": self._sanitize_sensitive_data(metadata or {})
+        }
+        
+        # Add to buffer
+        with self.lock:
+            self.log_buffer.append(log_entry)
+            
+        return entry_id
+        
+    async def log_translation(
+        self,
+        user_id: Optional[str] = None,
+        text_length: Optional[int] = None,
+        source_language: Optional[str] = None,
+        target_language: Optional[str] = None,
+        model_id: Optional[str] = None,
+        processing_time: Optional[float] = None,
+        quality_score: Optional[float] = None,
+        request_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Log a translation operation.
+        
+        Args:
+            user_id: User identifier
+            text_length: Length of the processed text
+            source_language: The source language code
+            target_language: The target language code
+            model_id: Model used for translation
+            processing_time: Processing time in seconds
+            quality_score: Translation quality score (if available)
+            request_id: Request identifier
+            correlation_id: Identifier for correlating related operations
+            metadata: Additional metadata about the translation
+            
+        Returns:
+            Audit log entry ID
+        """
+        if not self.enabled:
+            return ""
+            
+        # Generate log entry ID
+        entry_id = str(uuid.uuid4())
+        
+        # Create log entry
+        log_entry = {
+            "id": entry_id,
+            "timestamp": datetime.now().isoformat(),
+            "type": "translation",
+            "user_id": user_id,
+            "request_id": request_id or str(uuid.uuid4()),
+            "text_length": text_length,
+            "source_language": source_language,
+            "target_language": target_language,
+            "model_id": model_id,
+            "processing_time": processing_time,
+            "quality_score": quality_score,
+            "correlation_id": correlation_id or str(uuid.uuid4()),
+            "metadata": self._sanitize_sensitive_data(metadata or {})
+        }
+        
+        # Add to buffer
+        with self.lock:
+            self.log_buffer.append(log_entry)
+            
+        return entry_id
+        
+    async def log_text_to_speech(
+        self,
+        user_id: Optional[str] = None,
+        text_length: Optional[int] = None,
+        audio_size: Optional[int] = None,
+        language: Optional[str] = None,
+        voice_id: Optional[str] = None,
+        output_format: Optional[str] = None,
+        processing_time: Optional[float] = None,
+        model_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Log a text-to-speech operation.
+        
+        Args:
+            user_id: User identifier
+            text_length: Length of the input text
+            audio_size: Size of the generated audio in bytes
+            language: Language code
+            voice_id: Voice identifier
+            output_format: Audio output format
+            processing_time: Processing time in seconds
+            model_id: Model used for TTS
+            request_id: Request identifier
+            correlation_id: Identifier for correlating related operations
+            metadata: Additional metadata about the TTS operation
+            
+        Returns:
+            Audit log entry ID
+        """
+        if not self.enabled:
+            return ""
+            
+        # Generate log entry ID
+        entry_id = str(uuid.uuid4())
+        
+        # Create log entry
+        log_entry = {
+            "id": entry_id,
+            "timestamp": datetime.now().isoformat(),
+            "type": "text_to_speech",
+            "user_id": user_id,
+            "request_id": request_id or str(uuid.uuid4()),
+            "text_length": text_length,
+            "audio_size": audio_size,
+            "language": language,
+            "voice_id": voice_id,
+            "output_format": output_format,
+            "processing_time": processing_time,
+            "model_id": model_id,
+            "correlation_id": correlation_id or str(uuid.uuid4()),
+            "metadata": self._sanitize_sensitive_data(metadata or {})
+        }
+        
+        # Add to buffer
+        with self.lock:
+            self.log_buffer.append(log_entry)
+            
+        return entry_id
+        
+    async def log_speech_to_text(
+        self,
+        user_id: Optional[str] = None,
+        audio_size: Optional[int] = None,
+        text_length: Optional[int] = None,
+        language: Optional[str] = None,
+        confidence: Optional[float] = None,
+        processing_time: Optional[float] = None,
+        model_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Log a speech-to-text operation.
+        
+        Args:
+            user_id: User identifier
+            audio_size: Size of the input audio in bytes
+            text_length: Length of the transcribed text
+            language: Language code
+            confidence: Transcription confidence score
+            processing_time: Processing time in seconds
+            model_id: Model used for STT
+            request_id: Request identifier
+            correlation_id: Identifier for correlating related operations
+            metadata: Additional metadata about the STT operation
+            
+        Returns:
+            Audit log entry ID
+        """
+        if not self.enabled:
+            return ""
+            
+        # Generate log entry ID
+        entry_id = str(uuid.uuid4())
+        
+        # Create log entry
+        log_entry = {
+            "id": entry_id,
+            "timestamp": datetime.now().isoformat(),
+            "type": "speech_to_text",
+            "user_id": user_id,
+            "request_id": request_id or str(uuid.uuid4()),
+            "audio_size": audio_size,
+            "text_length": text_length,
+            "language": language,
+            "confidence": confidence,
+            "processing_time": processing_time,
+            "model_id": model_id,
+            "correlation_id": correlation_id or str(uuid.uuid4()),
+            "metadata": self._sanitize_sensitive_data(metadata or {})
+        }
+        
+        # Add to buffer
+        with self.lock:
+            self.log_buffer.append(log_entry)
+            
+        return entry_id
+        
+    async def log_summarization(
+        self,
+        user_id: Optional[str] = None,
+        text_length: Optional[int] = None,
+        summary_length: Optional[int] = None,
+        language: Optional[str] = None,
+        summary_ratio: Optional[float] = None,
+        length_setting: Optional[str] = None,
+        processing_time: Optional[float] = None,
+        model_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Log a text summarization operation.
+        
+        Args:
+            user_id: User identifier
+            text_length: Length of the original text
+            summary_length: Length of the generated summary
+            language: Language code
+            summary_ratio: Ratio of summary length to original text length
+            length_setting: Summary length setting (short, medium, long)
+            processing_time: Processing time in seconds
+            model_id: Model used for summarization
+            request_id: Request identifier
+            correlation_id: Identifier for correlating related operations
+            metadata: Additional metadata about the summarization operation
+            
+        Returns:
+            Audit log entry ID
+        """
+        if not self.enabled:
+            return ""
+            
+        # Generate log entry ID
+        entry_id = str(uuid.uuid4())
+        
+        # Create log entry
+        log_entry = {
+            "id": entry_id,
+            "timestamp": datetime.now().isoformat(),
+            "type": "summarization",
+            "user_id": user_id,
+            "request_id": request_id or str(uuid.uuid4()),
+            "text_length": text_length,
+            "summary_length": summary_length,
+            "language": language,
+            "summary_ratio": summary_ratio,
+            "length_setting": length_setting,
+            "processing_time": processing_time,
+            "model_id": model_id,
+            "correlation_id": correlation_id or str(uuid.uuid4()),
+            "metadata": self._sanitize_sensitive_data(metadata or {})
+        }
+        
+        # Add to buffer
+        with self.lock:
+            self.log_buffer.append(log_entry)
+            
+        return entry_id
+        
+    async def log_anonymization(
+        self,
+        user_id: Optional[str] = None,
+        text_length: Optional[int] = None,
+        entity_count: Optional[int] = None,
+        language: Optional[str] = None,
+        entity_types: Optional[List[str]] = None,
+        mode: Optional[str] = None,
+        processing_time: Optional[float] = None,
+        model_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        correlation_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Log a text anonymization operation.
+        
+        Args:
+            user_id: User identifier
+            text_length: Length of the input text
+            entity_count: Number of entities detected and anonymized
+            language: Language code
+            entity_types: Types of entities to anonymize
+            mode: Anonymization mode (redact, mask, replace)
+            processing_time: Processing time in seconds
+            model_id: Model used for anonymization
+            request_id: Request identifier
+            correlation_id: Identifier for correlating related operations
+            metadata: Additional metadata about the anonymization operation
+            
+        Returns:
+            Audit log entry ID
+        """
+        if not self.enabled:
+            return ""
+            
+        # Generate log entry ID
+        entry_id = str(uuid.uuid4())
+        
+        # Create log entry
+        log_entry = {
+            "id": entry_id,
+            "timestamp": datetime.now().isoformat(),
+            "type": "anonymization",
+            "user_id": user_id,
+            "request_id": request_id or str(uuid.uuid4()),
+            "text_length": text_length,
+            "entity_count": entity_count,
+            "language": language,
+            "entity_types": entity_types,
+            "mode": mode,
+            "processing_time": processing_time,
+            "model_id": model_id,
+            "correlation_id": correlation_id or str(uuid.uuid4()),
+            "metadata": self._sanitize_sensitive_data(metadata or {})
+        }
+        
+        # Add to buffer
+        with self.lock:
+            self.log_buffer.append(log_entry)
+            
+        return entry_id
+        
     async def get_security_events(
         self,
         start_time: Optional[datetime] = None,
