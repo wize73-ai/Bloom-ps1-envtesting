@@ -1347,6 +1347,10 @@ from app.api.routes.verification import router as verification_router
 app.include_router(verification_router, tags=["Verification"])
 app.include_router(verification_router, prefix="/verification", tags=["Verification"])
 
+# Include document processing API routes
+from app.api.routes.document import router as document_router
+app.include_router(document_router, prefix="/document", tags=["Document Processing"])
+
 # Add new model management endpoint
 from fastapi import APIRouter
 model_router = APIRouter()

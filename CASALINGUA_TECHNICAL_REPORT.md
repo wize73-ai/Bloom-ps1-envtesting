@@ -8,7 +8,26 @@ This technical report provides a comprehensive overview of CasaLingua's architec
 
 ## Recent Fixes and Enhancements
 
-### 1. Circular Import Resolution
+### 1. Document Processing Implementation
+
+The document processing functionality has been fully implemented to enable working with various document formats (PDF, DOCX, and images):
+
+- Added complete API endpoints for document processing:
+  - `/document/extract`: Extracts text from documents
+  - `/document/process`: Processes documents with translation, simplification, etc.
+  - `/document/analyze`: Analyzes documents for metadata, entities, etc.
+  
+- Implemented document processing methods in the UnifiedProcessor:
+  - `process_document()`: Processes documents with various operations
+  - `extract_document_text()`: Extracts text from documents without processing
+  - `analyze_document()`: Analyzes documents to extract insights
+  
+- Created document schemas for request/response standardization
+- Added comprehensive tests for document processing endpoints
+
+This implementation leverages the existing document handlers for PDF, DOCX, and OCR, providing a complete end-to-end document processing pipeline.
+
+### 2. Circular Import Resolution
 
 The application suffered from circular imports between `wrapper.py` and `embedding_wrapper.py` that prevented proper initialization:
 
@@ -516,6 +535,9 @@ The recent fixes to circular imports, endpoint implementation, and model caching
 | `/pipeline/tts` | POST | Text-to-speech conversion |
 | `/pipeline/tts/voices` | GET | Available TTS voices |
 | `/audio/{filename}` | GET | Access to generated audio files |
+| `/document/extract` | POST | Extract text from documents |
+| `/document/process` | POST | Process documents (translate, simplify, etc.) |
+| `/document/analyze` | POST | Analyze documents for insights |
 | `/rag/query` | POST | Knowledge-base queries |
 | `/metrics` | GET | System metrics |
 

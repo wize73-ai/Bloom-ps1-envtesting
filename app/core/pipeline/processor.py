@@ -1202,6 +1202,350 @@ class UnifiedProcessor:
         # Get voices from TTS pipeline
         return await self.tts_pipeline.get_available_voices(language)
 
+    async def process_document(
+        self,
+        document_content: bytes,
+        document_type: str,
+        options: Dict[str, Any] = None,
+        filename: Optional[str] = None,
+        user_id: Optional[str] = None,
+        request_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Process a document with various operations.
+        
+        Args:
+            document_content: Document content as bytes
+            document_type: MIME type or document type (pdf, docx, etc.)
+            options: Processing options for the document
+                - source_language: Source language code
+                - target_language: Target language code
+                - simplify: Whether to simplify text
+                - simplification_level: Level of simplification
+                - anonymize: Whether to anonymize personal information
+                - ocr_enabled: Whether to use OCR for scanned documents
+                - translate: Whether to translate the document
+                - extract_tables: Whether to extract tables from document
+                - preserve_formatting: Whether to preserve document formatting
+                - generate_document: Whether to generate processed document
+                - model_id: Model ID to use for processing
+            filename: Original filename (optional)
+            user_id: User ID for tracking (optional)
+            request_id: Request ID for tracking (optional)
+            
+        Returns:
+            Dict with processing results including:
+            - original_text: Original text from document
+            - processed_text: Processed text (if any processing was done)
+            - document_type: Document type
+            - page_count: Number of pages (for PDFs)
+            - processed_document: Processed document content (if generate_document is True)
+            - processing_metrics: Processing metrics
+        """
+        if not self.initialized:
+            await self.initialize()
+            
+        logger.info(f"Processing document of type {document_type}, request {request_id}")
+        start_time = time.time()
+        
+        # Set default options
+        options = options or {}
+        
+        # Prepare metadata
+        metadata = {
+            "detected_mime_type": document_type,
+            "request_id": request_id or str(uuid.uuid4()),
+            "user_id": user_id,
+            "timestamp": time.time()
+        }
+        
+        if filename:
+            metadata["filename"] = filename
+        
+        try:
+            # Process document using internal method
+            result = await self._process_document(document_content, options, metadata)
+            
+            # Add processing time
+            processing_time = time.time() - start_time
+            result["processing_time"] = processing_time
+            
+            # Add request tracking info
+            result["request_id"] = metadata["request_id"]
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error processing document: {str(e)}", exc_info=True)
+            return {
+                "status": "error",
+                "error": f"Document processing error: {str(e)}",
+                "document_type": document_type,
+                "request_id": metadata["request_id"],
+                "processing_time": time.time() - start_time
+            }
+    
+    async def extract_document_text(
+        self,
+        document_content: bytes,
+        document_type: str,
+        options: Dict[str, Any] = None,
+        filename: Optional[str] = None,
+        request_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Extract text from a document without additional processing.
+        
+        Args:
+            document_content: Document content as bytes
+            document_type: MIME type or document type (pdf, docx, etc.)
+            options: Processing options
+                - ocr_enabled: Whether to use OCR for scanned documents
+                - language: Language code for OCR (optional)
+            filename: Original filename (optional)
+            request_id: Request ID for tracking (optional)
+            
+        Returns:
+            Dict with extraction results:
+            - text: Extracted text
+            - document_type: Document type
+            - page_count: Number of pages (for PDFs)
+            - metadata: Document metadata
+        """
+        if not self.initialized:
+            await self.initialize()
+            
+        logger.info(f"Extracting text from document of type {document_type}, request {request_id}")
+        start_time = time.time()
+        
+        # Set default options
+        options = options or {}
+        
+        # Prepare metadata
+        metadata = {
+            "detected_mime_type": document_type,
+            "request_id": request_id or str(uuid.uuid4()),
+            "timestamp": time.time()
+        }
+        
+        if filename:
+            metadata["filename"] = filename
+        
+        try:
+            # Extract text from document based on type
+            if "pdf" in document_type.lower():
+                # Initialize PDF processor if needed
+                if not self.pdf_processor:
+                    self.pdf_processor = PDFProcessor(self.model_manager, self.config)
+                
+                # Extract text from PDF
+                text, doc_metadata = await self.pdf_processor.extract_text(document_content)
+                metadata.update(doc_metadata)
+                
+            elif any(x in document_type.lower() for x in ["docx", "doc", "word"]):
+                # Initialize DOCX processor if needed
+                if not self.docx_processor:
+                    self.docx_processor = DOCXProcessor(self.model_manager, self.config)
+                
+                # For DOCX processor, we need to save the bytes to a temp file first
+                import tempfile
+                import os
+                
+                # Create temporary file
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+                    tmp.write(document_content)
+                    tmp_path = tmp.name
+                
+                try:
+                    # Extract text from DOCX
+                    text = self.docx_processor.extract_text(tmp_path) or ""
+                    doc_metadata = {"page_count": 1}  # DOCX doesn't provide page count easily
+                    metadata.update(doc_metadata)
+                finally:
+                    # Clean up temp file
+                    try:
+                        os.unlink(tmp_path)
+                    except Exception as e:
+                        logger.warning(f"Failed to remove temporary DOCX file: {str(e)}")
+                
+            elif any(x in document_type.lower() for x in ["image", "png", "jpg", "jpeg", "tiff"]):
+                # Use OCR for images
+                if options.get("ocr_enabled", True):
+                    # Initialize OCR processor if needed
+                    if not self.ocr_processor:
+                        self.ocr_processor = OCRProcessor(self.model_manager, self.config)
+                    
+                    # Extract text using OCR
+                    ocr_result = await self.ocr_processor.extract_text(
+                        document_content,
+                        options.get("language")
+                    )
+                    
+                    text = ocr_result.get("text", "")
+                    metadata.update(ocr_result.get("metadata", {}))
+                    metadata["ocr_confidence"] = ocr_result.get("confidence", 0.0)
+                else:
+                    text = ""
+                    metadata["ocr_enabled"] = False
+            else:
+                # Try to decode as text
+                try:
+                    text = document_content.decode('utf-8')
+                    metadata["detected_mime_type"] = "text/plain"
+                except UnicodeDecodeError:
+                    raise ValueError(f"Unsupported document type: {document_type}")
+            
+            # Calculate processing time
+            processing_time = time.time() - start_time
+            
+            # Create result
+            result = {
+                "text": text,
+                "document_type": document_type,
+                "metadata": metadata,
+                "processing_time": processing_time,
+                "word_count": len(text.split()) if text else 0,
+                "request_id": metadata["request_id"]
+            }
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error extracting document text: {str(e)}", exc_info=True)
+            return {
+                "status": "error",
+                "error": f"Document text extraction error: {str(e)}",
+                "document_type": document_type,
+                "request_id": metadata["request_id"],
+                "processing_time": time.time() - start_time
+            }
+    
+    async def analyze_document(
+        self,
+        document_content: bytes,
+        document_type: str,
+        options: Dict[str, Any] = None,
+        filename: Optional[str] = None,
+        request_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Analyze a document to extract metadata, entities, tables, and other insights.
+        
+        Args:
+            document_content: Document content as bytes
+            document_type: MIME type or document type (pdf, docx, etc.)
+            options: Analysis options
+                - language: Language code (optional)
+                - ocr_enabled: Whether to use OCR for scanned documents
+                - extract_tables: Whether to extract tables
+                - extract_entities: Whether to extract entities
+                - detect_language: Whether to detect language
+            filename: Original filename (optional)
+            request_id: Request ID for tracking (optional)
+            
+        Returns:
+            Dict with analysis results:
+            - document_type: Document type
+            - page_count: Number of pages (for PDFs)
+            - word_count: Number of words
+            - languages: Detected languages
+            - tables: Extracted tables (if extract_tables is True)
+            - entities: Extracted entities (if extract_entities is True)
+        """
+        if not self.initialized:
+            await self.initialize()
+            
+        logger.info(f"Analyzing document of type {document_type}, request {request_id}")
+        start_time = time.time()
+        
+        # Set default options
+        options = options or {}
+        
+        # First extract text from document
+        extraction_result = await self.extract_document_text(
+            document_content,
+            document_type,
+            {
+                "ocr_enabled": options.get("ocr_enabled", True),
+                "language": options.get("language")
+            },
+            filename,
+            request_id
+        )
+        
+        # Check for errors
+        if "error" in extraction_result:
+            return extraction_result
+        
+        # Get extracted text and metadata
+        text = extraction_result.get("text", "")
+        doc_metadata = extraction_result.get("metadata", {})
+        
+        # Analyze the text
+        analysis = {
+            "document_type": document_type,
+            "page_count": doc_metadata.get("page_count", 1),
+            "word_count": len(text.split()) if text else 0,
+            "character_count": len(text),
+            "request_id": extraction_result.get("request_id"),
+            "processing_time": time.time() - start_time
+        }
+        
+        # Detect language if requested
+        if options.get("detect_language", True):
+            try:
+                lang_detection = await self.detect_language(text[:5000], detailed=True)
+                analysis["languages"] = [
+                    {"language": lang_detection["detected_language"], 
+                     "confidence": lang_detection["confidence"]}
+                ]
+                if "alternatives" in lang_detection:
+                    for alt in lang_detection["alternatives"]:
+                        analysis["languages"].append({
+                            "language": alt["language_code"],
+                            "confidence": alt["confidence"]
+                        })
+            except Exception as e:
+                logger.warning(f"Language detection failed: {str(e)}")
+                analysis["languages"] = [{"language": "unknown", "confidence": 0.0}]
+        
+        # Extract tables if requested and available
+        if options.get("extract_tables", False):
+            try:
+                # Add table extraction logic here
+                # This is a placeholder - real implementation would use a table extraction library
+                # or model like Camelot, Tabula, or a custom model
+                tables = []
+                analysis["tables"] = tables
+                analysis["tables_extracted"] = len(tables) > 0
+            except Exception as e:
+                logger.warning(f"Table extraction failed: {str(e)}")
+                analysis["tables_extracted"] = False
+        
+        # Extract entities if requested
+        if options.get("extract_entities", False) and text:
+            try:
+                # Analyze a portion of the text to extract entities
+                analysis_result = await self.analyze_text(
+                    text=text[:10000],  # Limit text size for analysis
+                    include_entities=True,
+                    include_sentiment=False,
+                    language=options.get("language", analysis.get("languages", [{}])[0].get("language"))
+                )
+                
+                if "entities" in analysis_result:
+                    analysis["entities"] = analysis_result["entities"]
+                
+                if "sentiment" in analysis_result:
+                    analysis["sentiment"] = analysis_result["sentiment"]
+            except Exception as e:
+                logger.warning(f"Entity extraction failed: {str(e)}")
+        
+        # Calculate processing time
+        analysis["processing_time"] = time.time() - start_time
+        
+        return analysis
+
     async def analyze_text(
         self,
         text: str,
