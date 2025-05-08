@@ -837,7 +837,7 @@ class VeracityAuditor:
             if original_text.strip() == simplified_text.strip():
                 result["issues"].append({
                     "type": "no_simplification",
-                    "severity": "warning",
+                    "severity": "critical",  # Changed from warning to critical
                     "message": "Simplified text is identical to original text"
                 })
                 
