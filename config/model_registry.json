@@ -4,19 +4,21 @@
     "model_type": "transformers",
     "tokenizer_name": "papluca/xlm-roberta-base-language-detection",
     "task": "language_detection",
-    "framework": "transformers"
+    "framework": "transformers",
+    "model_class": "AutoModelForSequenceClassification"
   },
   "translation": {
-    "model_name": "facebook/mbart-large-50-many-to-many-mmt",
-    "tokenizer_name": "facebook/mbart-large-50-many-to-many-mmt",
+    "model_name": "facebook/nllb-200-1.3B",
+    "tokenizer_name": "facebook/nllb-200-1.3B",
     "task": "translation",
     "type": "transformers",
     "model_class": "AutoModelForSeq2SeqLM",
     "framework": "transformers",
     "is_primary": true,
+    "allow_mps": true,
     "tokenizer_kwargs": {
-      "src_lang": "en_XX",
-      "tgt_lang": "es_XX"
+      "src_lang": "eng_Latn",
+      "tgt_lang": "spa_Latn"
     }
   },
   "mbart_translation": {
@@ -26,7 +28,8 @@
     "type": "transformers",
     "model_class": "AutoModelForSeq2SeqLM",
     "framework": "transformers",
-    "is_primary": true,
+    "is_primary": false,
+    "force_cpu": true,
     "tokenizer_kwargs": {
       "src_lang": "en_XX",
       "tgt_lang": "es_XX"
@@ -37,7 +40,7 @@
     "tokenizer_name": "google/mt5-small",
     "task": "mt5_translation",
     "type": "transformers",
-    "model_class": "AutoModelForSeq2SeqLM",
+    "model_class": "MT5ForConditionalGeneration",
     "framework": "transformers",
     "is_fallback": true,
     "tokenizer_kwargs": {
@@ -49,6 +52,7 @@
     "tokenizer_name": "dslim/bert-base-NER",
     "task": "ner_detection",
     "type": "transformers",
+    "model_class": "AutoModelForTokenClassification",
     "framework": "transformers"
   },
   "simplifier": {
@@ -59,11 +63,24 @@
     "model_class": "BartForConditionalGeneration",
     "framework": "transformers"
   },
+  "tts": {
+    "model_name": "facebook/mms-tts-eng",
+    "task": "text-to-speech",
+    "type": "pipeline",
+    "framework": "transformers",
+    "pipeline_task": "text-to-speech",
+    "device": "cpu",
+    "use_pipeline": true,
+    "model_kwargs": {
+      "cache_dir": "./.cache/models/facebook_mms-tts-eng"
+    }
+  },
   "rag_generator": {
     "model_name": "google/mt5-base",
     "tokenizer_name": "google/mt5-base",
     "task": "rag_generation",
     "type": "transformers",
+    "model_class": "MT5ForConditionalGeneration",
     "framework": "transformers"
   },
   "anonymizer": {
@@ -71,6 +88,7 @@
     "tokenizer_name": "bert-base-cased",
     "task": "anonymization",
     "type": "transformers",
+    "model_class": "AutoModelForTokenClassification",
     "framework": "transformers"
   },
   "rag_retriever": {
@@ -86,5 +104,32 @@
     "task": "embedding",
     "type": "sentence-transformers",
     "framework": "sentence-transformers"
+  },
+  "tts_fallback": {
+    "model_name": "espnet/kan-bayashi_ljspeech_vits",
+    "tokenizer_name": "espnet/kan-bayashi_ljspeech_vits",
+    "task": "text-to-speech",
+    "type": "transformers",
+    "model_class": "AutoModelForTextToSpeech",
+    "framework": "transformers",
+    "use_pipeline": true,
+    "pipeline_task": "text-to-speech",
+    "is_fallback": true,
+    "tokenizer_kwargs": {
+      "max_length": 256
+    }
+  },
+  "speech_to_text": {
+    "model_name": "openai/whisper-small",
+    "tokenizer_name": "openai/whisper-small",
+    "task": "speech-to-text",
+    "type": "transformers",
+    "model_class": "AutoModelForSpeechSeq2Seq",
+    "framework": "transformers",
+    "use_pipeline": true,
+    "pipeline_task": "automatic-speech-recognition",
+    "tokenizer_kwargs": {
+      "max_length": 256
+    }
   }
 }

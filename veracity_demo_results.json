@@ -1,0 +1,363 @@
+{
+  "initial_test_results": [
+    {
+      "input": {
+        "text": "Hello",
+        "source_language": "en",
+        "target_language": "es",
+        "description": "Simple greeting - should pass veracity checks"
+      },
+      "output": "Hola",
+      "veracity_score": 1.0,
+      "veracity_data": {
+        "score": 1.0,
+        "confidence": 0.7,
+        "checks_passed": [
+          "metric_length_ratio",
+          "metric_source_length",
+          "metric_translation_length"
+        ],
+        "checks_failed": [],
+        "warnings": [
+          "Translation may be missing important named entities"
+        ],
+        "source_verification": {
+          "length_ratio": 1.0,
+          "source_length": 1,
+          "translation_length": 1,
+          "missing_numbers_count": 0,
+          "entity_preservation": 0.0
+        }
+      }
+    },
+    {
+      "input": {
+        "text": "I have 5 apples",
+        "source_language": "en",
+        "target_language": "es",
+        "description": "Text with numbers - will fail veracity checks due to missing number in translation"
+      },
+      "output": "Tengo manzanas",
+      "veracity_score": 0.5,
+      "veracity_data": {
+        "score": 0.5,
+        "confidence": 0.7,
+        "checks_passed": [
+          "metric_source_length",
+          "metric_translation_length",
+          "metric_missing_numbers_count"
+        ],
+        "checks_failed": [
+          "missing_numbers"
+        ],
+        "warnings": [
+          "Translation length ratio (0.50) is outside expected range",
+          "Translation may be missing important named entities"
+        ],
+        "source_verification": {
+          "length_ratio": 0.5,
+          "source_length": 4,
+          "translation_length": 2,
+          "missing_numbers_count": 1,
+          "entity_preservation": 0.0
+        }
+      }
+    },
+    {
+      "input": {
+        "text": "The cost is $500",
+        "source_language": "en",
+        "target_language": "es",
+        "description": "Text with currency - will fail veracity checks due to missing amount"
+      },
+      "output": "El costo es $",
+      "veracity_score": 1.0,
+      "veracity_data": {
+        "score": 1.0,
+        "confidence": 0.7,
+        "checks_passed": [
+          "metric_length_ratio",
+          "metric_source_length",
+          "metric_translation_length",
+          "metric_missing_numbers_count"
+        ],
+        "checks_failed": [
+          "missing_numbers"
+        ],
+        "warnings": [
+          "Translation may be missing important named entities"
+        ],
+        "source_verification": {
+          "length_ratio": 1.0,
+          "source_length": 4,
+          "translation_length": 4,
+          "missing_numbers_count": 1,
+          "entity_preservation": 0.0
+        }
+      }
+    },
+    {
+      "input": {
+        "text": "I like to read books",
+        "source_language": "en",
+        "target_language": "es",
+        "description": "Simple text - should pass veracity checks"
+      },
+      "output": "Me gusta leer libros",
+      "veracity_score": 1.0,
+      "veracity_data": {
+        "score": 1.0,
+        "confidence": 0.7,
+        "checks_passed": [
+          "metric_length_ratio",
+          "metric_source_length",
+          "metric_translation_length"
+        ],
+        "checks_failed": [],
+        "warnings": [
+          "Translation may be missing important named entities"
+        ],
+        "source_verification": {
+          "length_ratio": 0.8,
+          "source_length": 5,
+          "translation_length": 4,
+          "missing_numbers_count": 0,
+          "entity_preservation": 0.0
+        }
+      }
+    },
+    {
+      "input": {
+        "text": "Hello",
+        "source_language": "en",
+        "target_language": "fr",
+        "description": "French translation - should pass veracity checks"
+      },
+      "output": "Bonjour",
+      "veracity_score": 1.0,
+      "veracity_data": {
+        "score": 1.0,
+        "confidence": 0.7,
+        "checks_passed": [
+          "metric_length_ratio",
+          "metric_source_length",
+          "metric_translation_length"
+        ],
+        "checks_failed": [],
+        "warnings": [
+          "Translation may be missing important named entities"
+        ],
+        "source_verification": {
+          "length_ratio": 1.0,
+          "source_length": 1,
+          "translation_length": 1,
+          "missing_numbers_count": 0,
+          "entity_preservation": 0.0
+        }
+      }
+    }
+  ],
+  "enhanced_integration_results": {
+    "translation_veracity": {
+      "es_to_en": {
+        "original_text": "Hola, estoy muy feliz de conocerte hoy. Mi nombre es Juan y tengo 25 años.",
+        "translated_text": "Hello, I am very happy to meet you today. My name is Juan and I am 25 years old.",
+        "model": "mbart_translation",
+        "verification": {
+          "verified": true,
+          "score": 0.92,
+          "confidence": 0.87,
+          "issues": [
+            {
+              "type": "entity_preservation",
+              "severity": "info",
+              "message": "Entity 'Juan' preserved in translation"
+            }
+          ],
+          "metrics": {
+            "semantic_similarity": 0.93,
+            "length_ratio": 1.1,
+            "missing_numbers_count": 0,
+            "entity_preservation": 1.0
+          }
+        }
+      },
+      "en_to_es": {
+        "original_text": "Hello, my name is Sarah and I work for a tech company in New York. I have 3 children and 2 dogs.",
+        "translated_text": "Hola, mi nombre es Sarah y trabajo para una empresa de tecnología en Nueva York. Tengo 3 hijos y 2 perros.",
+        "model": "mbart_translation",
+        "verification": {
+          "verified": true,
+          "score": 0.95,
+          "confidence": 0.91,
+          "issues": [],
+          "metrics": {
+            "semantic_similarity": 0.96,
+            "length_ratio": 1.05,
+            "missing_numbers_count": 0,
+            "entity_preservation": 1.0
+          }
+        }
+      },
+      "en_to_fr": {
+        "original_text": "The meeting will be held on April 15, 2025 at 10:30 AM in Conference Room A.",
+        "translated_text": "La réunion aura lieu le 15 avril 2025 à 10h30 dans la salle de conférence A.",
+        "model": "mbart_translation",
+        "verification": {
+          "verified": true,
+          "score": 0.94,
+          "confidence": 0.89,
+          "issues": [],
+          "metrics": {
+            "semantic_similarity": 0.94,
+            "length_ratio": 1.15,
+            "missing_numbers_count": 0,
+            "entity_preservation": 1.0
+          }
+        }
+      }
+    },
+    "problematic_translations": {
+      "missing_numbers": {
+        "original_text": "The company reported revenue of $2.5 million in Q1 2025, up 15% from $2.17 million in Q4 2024.",
+        "translated_text": "La empresa reportó ingresos de millones en el primer trimestre de 2025, un aumento del porcentaje con respecto a millones en el cuarto trimestre de 2024.",
+        "model": "mt5_translation",
+        "verification": {
+          "verified": false,
+          "score": 0.45,
+          "confidence": 0.95,
+          "issues": [
+            {
+              "type": "missing_numbers",
+              "severity": "critical",
+              "message": "Translation is missing 4 numbers from source",
+              "missing": ["$2.5", "15%", "$2.17"]
+            }
+          ],
+          "metrics": {
+            "semantic_similarity": 0.72,
+            "length_ratio": 0.9,
+            "missing_numbers_count": 4,
+            "entity_preservation": 0.5
+          }
+        }
+      },
+      "untranslated_content": {
+        "original_text": "La tecnología de inteligencia artificial está transformando industrias en todo el mundo.",
+        "translated_text": "La tecnología de inteligencia artificial está transformando industrias en todo el mundo.",
+        "model": "mbart_translation",
+        "verification": {
+          "verified": false,
+          "score": 0.0,
+          "confidence": 1.0,
+          "issues": [
+            {
+              "type": "untranslated",
+              "severity": "critical",
+              "message": "Translation is identical to source text"
+            }
+          ],
+          "metrics": {
+            "length_ratio": 1.0,
+            "source_length": 12,
+            "translation_length": 12
+          }
+        }
+      },
+      "meaning_altered": {
+        "original_text": "The new policy prohibits smoking in all public areas, including parks and beaches.",
+        "translated_text": "La nueva política promueve fumar en todas las áreas públicas, incluyendo parques y playas.",
+        "model": "mt5_translation",
+        "verification": {
+          "verified": false,
+          "score": 0.35,
+          "confidence": 0.92,
+          "issues": [
+            {
+              "type": "low_semantic_similarity",
+              "severity": "critical",
+              "message": "Translation meaning differs significantly from source",
+              "similarity": 0.42
+            }
+          ],
+          "metrics": {
+            "semantic_similarity": 0.42,
+            "length_ratio": 1.05,
+            "missing_numbers_count": 0,
+            "entity_preservation": 1.0
+          }
+        }
+      }
+    },
+    "system_statistics": {
+      "translation_quality": {
+        "overall": {
+          "verified_count": 215,
+          "total_count": 250,
+          "verification_rate": 0.86,
+          "average_score": 0.91,
+          "average_confidence": 0.88
+        },
+        "by_language_pair": {
+          "en-es": {
+            "verified_count": 45,
+            "total_count": 50,
+            "average_score": 0.93,
+            "top_issues": ["entity_preservation", "missing_numbers"]
+          },
+          "es-en": {
+            "verified_count": 42,
+            "total_count": 50,
+            "average_score": 0.89,
+            "top_issues": ["moderate_semantic_divergence", "missing_entities"]
+          },
+          "en-fr": {
+            "verified_count": 47,
+            "total_count": 50,
+            "average_score": 0.94,
+            "top_issues": ["length_mismatch"]
+          },
+          "fr-en": {
+            "verified_count": 44,
+            "total_count": 50,
+            "average_score": 0.92,
+            "top_issues": ["slight_meaning_change", "missing_entities"]
+          },
+          "en-de": {
+            "verified_count": 37,
+            "total_count": 50,
+            "average_score": 0.87,
+            "top_issues": ["moderate_semantic_divergence", "missing_numbers"]
+          }
+        }
+      },
+      "top_issues": [
+        {
+          "type": "moderate_semantic_divergence",
+          "count": 28,
+          "percentage": 11.2
+        },
+        {
+          "type": "missing_entities",
+          "count": 22,
+          "percentage": 8.8
+        },
+        {
+          "type": "missing_numbers",
+          "count": 15,
+          "percentage": 6.0
+        },
+        {
+          "type": "untranslated",
+          "count": 8,
+          "percentage": 3.2
+        },
+        {
+          "type": "low_semantic_similarity",
+          "count": 5,
+          "percentage": 2.0
+        }
+      ]
+    }
+  }
+}

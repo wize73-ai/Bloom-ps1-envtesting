@@ -13,3 +13,4 @@ fix_result = fix_circular_imports()
 from app.services.models.wrapper_base import BaseModelWrapper, ModelInput, ModelOutput
 from app.services.models.wrapper import get_wrapper_for_model
 from app.services.models.manager import EnhancedModelManager
+from app.services.models.model_manager import ModelManager

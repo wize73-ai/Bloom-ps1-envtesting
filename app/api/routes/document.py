@@ -2,7 +2,8 @@
 Document Processing Routes for CasaLingua
 
 This module defines API endpoints for document processing, including
-text extraction, translation, and analysis.
+text extraction, translation, and analysis. It uses a session manager
+to store document content temporarily during user sessions.
 """
 
 import time
@@ -10,7 +11,7 @@ import uuid
 import logging
 import mimetypes
 from typing import Dict, List, Any, Optional, Union
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File, Form, Query, Path, Request, status
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File, Form, Query, Path, Request, status, Cookie, Response
 from pydantic import BaseModel, Field, validator
 
 from app.api.schemas.document import (
@@ -26,11 +27,15 @@ from app.api.schemas.document import (
 from app.api.schemas.base import BaseResponse, StatusEnum, MetadataModel, ErrorDetail
 from app.api.middleware.auth import get_current_user
 from app.utils.logging import get_logger
+from app.services.storage.session_manager import SessionManager
 
 logger = get_logger(__name__)
 
 # Create router
 router = APIRouter()
+
+# Get the session manager instance
+session_manager = SessionManager()
 
 # ----- Document Processing Endpoints -----
 
@@ -47,6 +52,7 @@ async def extract_document_text(
     file: UploadFile = File(...),
     language: Optional[str] = Form(None, description="Language code for OCR processing"),
     ocr_enabled: bool = Form(True, description="Whether to use OCR for scanned documents"),
+    session_id: Optional[str] = Cookie(None, description="Session identifier for document storage"),
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """
@@ -54,9 +60,14 @@ async def extract_document_text(
     
     This endpoint handles PDF, DOCX, and image files, extracting
     the text content with optional OCR for images and scanned PDFs.
+    Document content is stored in the user's session for later use.
     """
     start_time = time.time()
     request_id = str(uuid.uuid4())
+    
+    # Generate session ID if not provided
+    if not session_id:
+        session_id = str(uuid.uuid4())
     
     try:
         # Get application components from state
@@ -91,12 +102,29 @@ async def extract_document_text(
                 "filename": filename,
                 "document_type": document_type,
                 "language": language,
-                "ocr_enabled": ocr_enabled
+                "ocr_enabled": ocr_enabled,
+                "session_id": session_id
             }
         )
         
         # Read file content
         content = await file.read()
+        
+        # Store document in session
+        document_id = str(uuid.uuid4())
+        await session_manager.add_document(
+            session_id=session_id,
+            document_id=document_id,
+            content=content,
+            metadata={
+                "filename": filename,
+                "content_type": content_type,
+                "document_type": document_type,
+                "size": len(content),
+                "user_id": current_user["id"],
+                "created_at": time.time()
+            }
+        )
         
         # Extract text from document
         extraction_result = await processor.extract_document_text(
@@ -126,6 +154,19 @@ async def extract_document_text(
             detection_confidence=extraction_result.get("metadata", {}).get("ocr_confidence")
         )
         
+        # Store extraction result in session metadata
+        await session_manager.update_session_metadata(
+            session_id=session_id,
+            metadata={
+                f"document_{document_id}_extraction": {
+                    "text": extraction_result.get("text", ""),
+                    "page_count": extraction_result.get("metadata", {}).get("page_count", 1),
+                    "word_count": extraction_result.get("word_count", 0),
+                    "processing_time": extraction_result.get("processing_time", 0)
+                }
+            }
+        )
+        
         # Calculate process time
         process_time = extraction_result.get("processing_time", time.time() - start_time)
         
@@ -141,11 +182,13 @@ async def extract_document_text(
             metadata={
                 "document_type": document_type,
                 "filename": filename,
-                "ocr_enabled": ocr_enabled
+                "ocr_enabled": ocr_enabled,
+                "document_id": document_id,
+                "session_id": session_id
             }
         )
         
-        # Create response
+        # Create response with session info
         response = BaseResponse(
             status=StatusEnum.SUCCESS,
             message="Document text extraction completed successfully",
@@ -154,13 +197,25 @@ async def extract_document_text(
                 request_id=request_id,
                 timestamp=time.time(),
                 version=request.app.state.config.get("version", "1.0.0"),
-                process_time=process_time
+                process_time=process_time,
+                document_id=document_id,
+                session_id=session_id
             ),
             errors=None,
             pagination=None
         )
         
-        return response
+        # Set session cookie in response
+        response_obj = Response(response.dict())
+        response_obj.set_cookie(
+            key="session_id",
+            value=session_id,
+            max_age=3600,  # 1 hour
+            httponly=True,
+            samesite="lax"
+        )
+        
+        return response_obj
         
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -179,7 +234,8 @@ async def extract_document_text(
             success=False,
             metadata={
                 "error": str(e),
-                "filename": file.filename
+                "filename": file.filename,
+                "session_id": session_id
             }
         )
         

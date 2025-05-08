@@ -1,0 +1,52 @@
+{
+  "english": {
+    "simple": "Hello, how are you today? I hope you're doing well.",
+    "complex": "The plaintiff alleged that the defendant had violated numerous provisions of the aforementioned contractual agreement, thereby causing substantial damages that necessitated immediate legal intervention.",
+    "expected_language": "en"
+  },
+  "spanish": {
+    "simple": "Hola, ¿cómo estás hoy? Espero que estés bien.",
+    "complex": "El demandante alegó que el demandado había violado numerosas disposiciones del acuerdo contractual antes mencionado, causando así daños sustanciales que necesitaban una intervención legal inmediata.",
+    "expected_language": "es"
+  },
+  "french": {
+    "simple": "Bonjour, comment allez-vous aujourd'hui? J'espère que vous allez bien.",
+    "complex": "Le plaignant a allégué que le défendeur avait violé de nombreuses dispositions de l'accord contractuel susmentionné, causant ainsi des dommages substantiels qui nécessitaient une intervention juridique immédiate.",
+    "expected_language": "fr"
+  },
+  "german": {
+    "simple": "Hallo, wie geht es Ihnen heute? Ich hoffe, es geht Ihnen gut.",
+    "complex": "Der Kläger behauptete, dass der Beklagte zahlreiche Bestimmungen des vorgenannten Vertrags verletzt habe, wodurch erhebliche Schäden entstanden seien, die ein sofortiges rechtliches Eingreifen erforderlich machten.",
+    "expected_language": "de"
+  },
+  "italian": {
+    "simple": "Ciao, come stai oggi? Spero che tu stia bene.",
+    "complex": "L'attore ha sostenuto che il convenuto aveva violato numerose disposizioni dell'accordo contrattuale sopra menzionato, causando così danni sostanziali che necessitavano di un intervento legale immediato.",
+    "expected_language": "it"
+  },
+  "portuguese": {
+    "simple": "Olá, como está hoje? Espero que esteja bem.",
+    "complex": "O autor alegou que o réu violou numerosas disposições do acordo contratual acima mencionado, causando assim danos substanciais que necessitavam de intervenção legal imediata.",
+    "expected_language": "pt"
+  },
+  "chinese": {
+    "simple": "你好，今天怎么样？希望你一切都好。",
+    "complex": "原告称被告违反了上述合同协议的众多条款，从而造成了实质性损害，需要立即采取法律干预措施。",
+    "expected_language": "zh"
+  },
+  "japanese": {
+    "simple": "こんにちは、今日はどうですか？元気であることを願っています。",
+    "complex": "原告は、被告が前述の契約合意の多数の条項に違反し、それによって即時の法的介入を必要とする実質的な損害を引き起こしたと主張した。",
+    "expected_language": "ja"
+  },
+  "russian": {
+    "simple": "Привет, как ты сегодня? Надеюсь, у тебя все хорошо.",
+    "complex": "Истец утверждал, что ответчик нарушил многочисленные положения вышеупомянутого договорного соглашения, тем самым причинив существенный ущерб, требующий немедленного правового вмешательства.",
+    "expected_language": "ru"
+  },
+  "arabic": {
+    "simple": "مرحبًا، كيف حالك اليوم؟ آمل أن تكون بخير.",
+    "complex": "زعم المدعي أن المدعى عليه قد انتهك العديد من أحكام الاتفاقية التعاقدية المذكورة أعلاه، مما تسبب في أضرار جوهرية تتطلب تدخلاً قانونيًا فوريًا.",
+    "expected_language": "ar"
+  }
+}

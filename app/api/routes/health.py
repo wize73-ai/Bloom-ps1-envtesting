@@ -362,9 +362,9 @@ async def model_health_check(request: Request) -> dict:
                         if hasattr(processor, "translate_text"):
                             test_result = await processor.translate_text(
                                 text=test_text,
-                                source_lang="en",
-                                target_lang="es",
-                                model_name=model_name if "model_name" in model_name else None
+                                source_language="en",
+                                target_language="es",
+                                model_id=model_name if "model_name" in model_name else None
                             )
                             model_result["test_result"] = "success" if test_result and len(test_result) > 0 else "failure"
                         elif hasattr(processor, "translate"):
@@ -372,7 +372,7 @@ async def model_health_check(request: Request) -> dict:
                                 text=test_text,
                                 source_language="en",
                                 target_language="es",
-                                model_name=model_name if "model_name" in model_name else None
+                                model_id=model_name if "model_name" in model_name else None
                             )
                             model_result["test_result"] = "success" if test_result and len(test_result) > 0 else "failure"
                         elif hasattr(processor, "run_translation"):
@@ -444,10 +444,20 @@ async def model_health_check(request: Request) -> dict:
                     try:
                         # Try various methods for simplification
                         if hasattr(processor, "simplify_text"):
-                            test_result = await processor.simplify_text(text=test_text, target_level="simple")
+                            try:
+                                # First try using the parameter name "target_level"
+                                test_result = await processor.simplify_text(text=test_text, target_level="simple")
+                            except TypeError as e:
+                                # If that fails, try with "level" parameter
+                                if "target_level" in str(e) or "level" in str(e):
+                                    logger.warning("Parameter mismatch in simplify_text, trying with 'level' parameter")
+                                    test_result = await processor.simplify_text(text=test_text, level="simple")
+                                else:
+                                    # Re-raise if it's a different error
+                                    raise
                             model_result["test_result"] = "success" if test_result and len(test_result) > 0 else "failure"
                         elif hasattr(processor, "simplify"):
-                            test_result = await processor.simplify(text=test_text, target_level="simple")
+                            test_result = await processor.simplify(text=test_text, level="simple")
                             model_result["test_result"] = "success" if test_result and len(test_result) > 0 else "failure"
                         elif hasattr(processor, "run_simplification"):
                             test_result = await processor.run_simplification(text=test_text, level="simple")
@@ -459,7 +469,7 @@ async def model_health_check(request: Request) -> dict:
                                 method_name="process_async",
                                 input_data={
                                     "text": test_text,
-                                    "target_level": "simple",
+                                    "level": "simple",
                                     "parameters": {"simplification_level": "simple"}
                                 }
                             )

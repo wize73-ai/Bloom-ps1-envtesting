@@ -37,22 +37,16 @@ async def stream_translation(
 ) -> AsyncIterator[str]:
     """Process translation request as a stream, yielding partial results."""
     from app.core.pipeline.processor import get_pipeline_processor
-    from app.core.pipeline.translator import get_translator
     
-    # Set up processor and translator
+    # Set up processor
     processor = await get_pipeline_processor()
-    translator = await get_translator(
-        source_lang=translation_request.source_language, 
-        target_lang=translation_request.target_language,
-        model_id=translation_request.model_id
-    )
     
     # Get or detect source language
     source_lang = translation_request.source_language
     if source_lang == "auto" or not source_lang:
         # Detect language from first chunk
         first_chunk = translation_request.text[:1000]  # Use limited text for faster detection
-        detection_result = await processor.detect_language(text=first_chunk, detailed=False)
+        detection_result = await processor.detect_language(text=first_chunk, confidence_threshold=0.6)
         source_lang = detection_result.get("detected_language", "en")
         # Yield language detection event
         yield json.dumps({
@@ -88,24 +82,46 @@ async def stream_translation(
     chunk_count = len(chunks)
     
     for i, chunk in enumerate(chunks):
-        # Translate chunk
-        translation_result = await translator.translate(
-            text=chunk,
-            source_lang=source_lang,
-            target_lang=translation_request.target_language
-        )
-        
-        translated_chunk = translation_result.get("translated_text", "")
-        translated_text += translated_chunk
-        
-        # Yield progress event with the translated chunk
-        yield json.dumps({
-            "event": "chunk_translated",
-            "chunk_index": i,
-            "total_chunks": chunk_count,
-            "progress": (i + 1) / chunk_count,
-            "translated_chunk": translated_chunk
-        }) + "\n"
+        # Translate chunk using processor's translate_text method
+        try:
+            # Options for translation
+            options = {
+                "preserve_formatting": translation_request.preserve_formatting,
+                "formality": translation_request.formality,
+                "glossary_id": translation_request.glossary_id,
+                "domain": translation_request.domain,
+                "context": translation_request.context
+            }
+            
+            translation_result = await processor.translate_text(
+                text=chunk,
+                source_language=source_lang,
+                target_language=translation_request.target_language,
+                model_id=translation_request.model_name,
+                options=options,
+                user_id=current_user.get("id"),
+                request_id=None
+            )
+            
+            translated_chunk = translation_result.get("translated_text", "")
+            translated_text += translated_chunk
+            
+            # Yield progress event with the translated chunk
+            yield json.dumps({
+                "event": "chunk_translated",
+                "chunk_index": i,
+                "total_chunks": chunk_count,
+                "progress": (i + 1) / chunk_count,
+                "translated_chunk": translated_chunk
+            }) + "\n"
+        except Exception as e:
+            # Log and yield error but continue with other chunks
+            logger.error(f"Error translating chunk {i}: {str(e)}")
+            yield json.dumps({
+                "event": "chunk_error",
+                "chunk_index": i,
+                "error": str(e)
+            }) + "\n"
         
         # Small delay to prevent overwhelming the client
         await asyncio.sleep(0.05)

@@ -133,31 +133,52 @@ async def main():
     # Process the input
     print("\nProcessing input through wrapper...")
     try:
-        # Use sync version for TranslationModelWrapper
-        result = wrapper.process(input_data)
-        print("Used sync processing")
+        # Use async version for TranslationModelWrapper
+        result = await wrapper.process(input_data)
+        print("Used async processing")
     except Exception as e:
         print(f"Processing failed: {e}")
         result = {"error": str(e)}
     
     # Print the result
     print("\nProcessing result:")
-    if "error" in result:
-        print(f"Error: {result['error']}")
-    else:
-        print(f"Result: {result.get('result')}")
-        
-        # Check for veracity data
-        if "metadata" in result and "veracity" in result["metadata"]:
-            veracity = result["metadata"]["veracity"]
-            print(f"Veracity score: {veracity.get('score', 0):.2f}")
-            print(f"Confidence: {veracity.get('confidence', 0):.2f}")
-            if "checks_passed" in veracity:
-                print(f"Checks passed: {', '.join(veracity['checks_passed'])}")
-            if "checks_failed" in veracity:
-                print(f"Checks failed: {', '.join(veracity['checks_failed'])}")
+    
+    try:
+        # Access result as ModelOutput
+        if hasattr(result, 'result'):
+            print(f"Result: {result.result}")
+            
+            # Check for veracity data in metadata
+            if hasattr(result, 'metadata'):
+                metadata = result.metadata
+                if isinstance(metadata, dict) and "veracity" in metadata:
+                    veracity = metadata["veracity"]
+                    print(f"Veracity score: {veracity.get('score', 0):.2f}")
+                    print(f"Confidence: {veracity.get('confidence', 0):.2f}")
+                    if "checks_passed" in veracity:
+                        print(f"Checks passed: {', '.join(veracity['checks_passed'])}")
+                    if "checks_failed" in veracity:
+                        print(f"Checks failed: {', '.join(veracity['checks_failed'])}")
+                elif "verified" in metadata:
+                    print(f"Verified: {metadata.get('verified')}")
+                    print(f"Verification score: {metadata.get('verification_score', 0):.2f}")
+                else:
+                    print("No specific veracity data found in metadata")
+                    print(f"All metadata: {metadata}")
+            else:
+                print("No metadata in result")
+                
+        # Handle error dict case
+        elif isinstance(result, dict) and "error" in result:
+            print(f"Error: {result['error']}")
         else:
-            print("No veracity data found in result")
+            print(f"Unexpected result format: {type(result)}")
+            print(f"Result contents: {result}")
+    except Exception as e:
+        print(f"Error processing result: {e}")
+        print(f"Result type: {type(result)}")
+        if hasattr(result, "__dict__"):
+            print(f"Result attrs: {result.__dict__}")
 
 if __name__ == "__main__":
     asyncio.run(main())

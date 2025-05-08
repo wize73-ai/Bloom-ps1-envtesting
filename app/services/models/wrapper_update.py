@@ -82,7 +82,7 @@ def update_wrapper_file():
     
     # Enhanced function with better model type detection and debug logging
     enhanced_func = """def create_model_wrapper(model_type: str, model: Any, tokenizer: Any = None, config: Dict[str, Any] = None, **kwargs) -> BaseModelWrapper:
-    """
+    \"\"\"
     Create a model wrapper for the specified model type
     
     Args:
@@ -94,7 +94,7 @@ def update_wrapper_file():
         
     Returns:
         BaseModelWrapper: Appropriate model wrapper
-    """
+    \"\"\"
     # Map of model types to wrapper classes
     wrapper_map = {
         "translation": TranslationModelWrapper,
@@ -187,7 +187,7 @@ def fix_model_manager():
     
     # Enhanced method with better model type detection and better caching
     enhanced_method = """async def run_model(self, model_type: str, method_name: str, input_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
+        \"\"\"
         Run a model with the specified method and input data
         
         Args:
@@ -197,7 +197,7 @@ def fix_model_manager():
             
         Returns:
             Dict[str, Any]: Model output
-        """
+        \"\"\"
         logger.info(f"Running model {model_type}.{method_name}")
         
         # Check for mbart translation model type

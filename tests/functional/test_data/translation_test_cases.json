@@ -1,0 +1,46 @@
+{
+  "test_cases": [
+    {
+      "name": "simple_english_to_spanish",
+      "source_text": "Hello, how are you today? I hope you're doing well.",
+      "source_language": "en",
+      "target_language": "es",
+      "expected_contains": ["Hola", "cómo estás", "espero"]
+    },
+    {
+      "name": "simple_english_to_french",
+      "source_text": "Hello, how are you today? I hope you're doing well.",
+      "source_language": "en",
+      "target_language": "fr",
+      "expected_contains": ["Bonjour", "comment allez-vous", "espère"]
+    },
+    {
+      "name": "simple_spanish_to_english",
+      "source_text": "Hola, ¿cómo estás hoy? Espero que estés bien.",
+      "source_language": "es",
+      "target_language": "en",
+      "expected_contains": ["Hello", "how are you", "hope"]
+    },
+    {
+      "name": "legal_english_to_spanish",
+      "source_text": "The plaintiff alleged that the defendant had violated numerous provisions of the aforementioned contractual agreement.",
+      "source_language": "en",
+      "target_language": "es",
+      "expected_contains": ["demandante", "demandado", "violado", "acuerdo contractual"]
+    },
+    {
+      "name": "technical_english_to_german",
+      "source_text": "The system automatically detects the language of the input text and processes it accordingly.",
+      "source_language": "en",
+      "target_language": "de",
+      "expected_contains": ["System", "erkennt", "Sprache", "automatisch"]
+    },
+    {
+      "name": "automatic_language_detection",
+      "source_text": "Bonjour, comment allez-vous aujourd'hui?",
+      "source_language": "auto",
+      "target_language": "en",
+      "expected_contains": ["Hello", "how are you", "today"]
+    }
+  ]
+}

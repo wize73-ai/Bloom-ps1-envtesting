@@ -1410,37 +1410,125 @@ class MetricsCollector:
                 
             return series
             
-    def save_metrics(self) -> None:
-        """Save metrics to disk."""
-        if not self.enabled:
-            return
-            
-        try:
-            # Get current timestamp for filename
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            
-            # Save all metrics to a single file
-            all_metrics = self.get_all_metrics()
-            all_metrics_file = self.metrics_dir / f"metrics_{timestamp}.json"
-            
-            with open(all_metrics_file, "w", encoding="utf-8") as f:
-                json.dump(all_metrics, f, indent=2)
+        def collect_speech_metrics(self, metrics_type: str, **kwargs):
+            """Collect metrics for speech processing operations."""
+            if not self.enabled:
+                return
                 
-            # Save time series data if enabled
-            if get_config_value(self.metrics_config, "save_time_series", True):
-                time_series_dir = self.metrics_dir / "time_series"
-                os.makedirs(time_series_dir, exist_ok=True)
-                
-                for series_name, series_data in self.time_series.items():
-                    if series_data:
-                        series_file = time_series_dir / f"{series_name}_{timestamp}.json"
-                        with open(series_file, "w", encoding="utf-8") as f:
-                            json.dump(series_data, f, indent=2)
-                            
-            logger.info(f"Metrics saved to {all_metrics_file}")
+            # Extract common metrics
+            duration = kwargs.get("duration", 0)
+            model_used = kwargs.get("model_used", "unknown")
+            is_fallback = kwargs.get("is_fallback", False)
+            language = kwargs.get("language", "en")
             
-        except Exception as e:
-            logger.error(f"Error saving metrics: {str(e)}", exc_info=True)
+            # Collect appropriate metrics based on type
+            if metrics_type == "tts":
+                # Text-to-Speech metrics
+                text_length = kwargs.get("text_length", 0)
+                audio_size = kwargs.get("audio_size", 0)
+                voice = kwargs.get("voice", "default")
+                
+                self.metrics["speech_synthesis"] = self.metrics.get("speech_synthesis", {
+                    "count": 0,
+                    "total_duration": 0,
+                    "total_text_length": 0,
+                    "total_audio_size": 0,
+                    "fallback_count": 0,
+                    "models": {},
+                    "languages": {},
+                    "voices": {}
+                })
+                
+                # Update speech synthesis metrics
+                synthesis = self.metrics["speech_synthesis"]
+                synthesis["count"] += 1
+                synthesis["total_duration"] += duration
+                synthesis["total_text_length"] += text_length
+                synthesis["total_audio_size"] += audio_size
+                if is_fallback:
+                    synthesis["fallback_count"] += 1
+                    
+                # Track by model
+                synthesis["models"][model_used] = synthesis["models"].get(model_used, 0) + 1
+                
+                # Track by language
+                synthesis["languages"][language] = synthesis["languages"].get(language, 0) + 1
+                
+                # Track by voice
+                synthesis["voices"][voice] = synthesis["voices"].get(voice, 0) + 1
+            
+            elif metrics_type == "stt":
+                # Speech-to-Text metrics
+                text_length = kwargs.get("text_length", 0)
+                audio_size = kwargs.get("audio_size", 0)
+                confidence = kwargs.get("confidence", 0)
+                
+                self.metrics["speech_recognition"] = self.metrics.get("speech_recognition", {
+                    "count": 0,
+                    "total_duration": 0,
+                    "total_text_length": 0,
+                    "total_audio_size": 0,
+                    "fallback_count": 0,
+                    "avg_confidence": 0,
+                    "models": {},
+                    "languages": {}
+                })
+                
+                # Update speech recognition metrics
+                recognition = self.metrics["speech_recognition"]
+                recognition["count"] += 1
+                recognition["total_duration"] += duration
+                recognition["total_text_length"] += text_length
+                recognition["total_audio_size"] += audio_size
+                
+                # Update average confidence
+                prev_avg = recognition["avg_confidence"]
+                prev_count = recognition["count"] - 1
+                recognition["avg_confidence"] = (prev_avg * prev_count + confidence) / recognition["count"]
+                
+                if is_fallback:
+                    recognition["fallback_count"] += 1
+                    
+                # Track by model
+                recognition["models"][model_used] = recognition["models"].get(model_used, 0) + 1
+                
+                # Track by language
+                recognition["languages"][language] = recognition["languages"].get(language, 0) + 1
+            
+            # Save metrics after collection
+            self.save_metrics()
+            
+        def save_metrics(self) -> None:
+            """Save metrics to disk."""
+            if not self.enabled:
+                return
+            
+            try:
+                # Get current timestamp for filename
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                
+                # Save all metrics to a single file
+                all_metrics = self.get_all_metrics()
+                all_metrics_file = self.metrics_dir / f"metrics_{timestamp}.json"
+                
+                with open(all_metrics_file, "w", encoding="utf-8") as f:
+                    json.dump(all_metrics, f, indent=2)
+                    
+                # Save time series data if enabled
+                if get_config_value(self.metrics_config, "save_time_series", True):
+                    time_series_dir = self.metrics_dir / "time_series"
+                    os.makedirs(time_series_dir, exist_ok=True)
+                    
+                    for series_name, series_data in self.time_series.items():
+                        if series_data:
+                            series_file = time_series_dir / f"{series_name}_{timestamp}.json"
+                            with open(series_file, "w", encoding="utf-8") as f:
+                                json.dump(series_data, f, indent=2)
+                                
+                logger.info(f"Metrics saved to {all_metrics_file}")
+            
+            except Exception as e:
+                logger.error(f"Error saving metrics: {str(e)}", exc_info=True)
             
     async def _cleanup_old_metrics(self) -> None:
         """

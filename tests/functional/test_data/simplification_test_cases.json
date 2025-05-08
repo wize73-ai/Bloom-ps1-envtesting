@@ -1,0 +1,39 @@
+{
+  "test_cases": [
+    {
+      "name": "legal_simplification",
+      "source_text": "The plaintiff alleged that the defendant had violated numerous provisions of the aforementioned contractual agreement, thereby causing substantial damages that necessitated immediate legal intervention.",
+      "language": "en",
+      "target_level": "simple",
+      "expected_contains": ["plaintiff", "defendant", "contract", "violated"]
+    },
+    {
+      "name": "technical_simplification",
+      "source_text": "The quantum entanglement phenomenon demonstrates non-local correlations between particles, which Einstein famously referred to as 'spooky action at a distance', challenging our classical intuitions about physical reality.",
+      "language": "en",
+      "target_level": "simple",
+      "expected_contains": ["quantum", "particles", "Einstein"]
+    },
+    {
+      "name": "medical_simplification",
+      "source_text": "The patient presents with acute myocardial infarction secondary to coronary artery thrombosis, necessitating immediate percutaneous coronary intervention to restore myocardial perfusion.",
+      "language": "en",
+      "target_level": "simple",
+      "expected_contains": ["heart", "attack", "blood", "flow"]
+    },
+    {
+      "name": "academic_simplification",
+      "source_text": "The research methodology employed a mixed-methods approach, incorporating both quantitative statistical analysis and qualitative phenomenological interviews to triangulate the findings and enhance validity.",
+      "language": "en",
+      "target_level": "simple",
+      "expected_contains": ["research", "methods", "analysis", "interviews"]
+    },
+    {
+      "name": "financial_simplification",
+      "source_text": "The corporation's quarterly financial statements indicated a substantial depreciation in tangible assets, necessitating a comprehensive reevaluation of the enterprise's capital allocation strategy.",
+      "language": "en",
+      "target_level": "simple",
+      "expected_contains": ["company", "financial", "assets", "strategy"]
+    }
+  ]
+}

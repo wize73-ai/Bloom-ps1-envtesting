@@ -10,7 +10,8 @@ __all__ = [
     "write_json_file", "create_unique_id", "load_embeddings_from_file", "save_embeddings_to_file",
     "batch_generator", "cosine_similarity", "euclidean_distance", "find_nearest_neighbors",
     "normalize_vectors", "reduce_dimensions", "Timer", "profile_function", "detect_difficulty_level",
-    "get_cognates", "conjugate_verb", "get_language_name", "get_spaced_repetition_interval"
+    "get_cognates", "conjugate_verb", "get_language_name", "get_spaced_repetition_interval",
+    "generate_session_token", "sanitize_filename"
 ]
 
 import os
@@ -23,7 +24,9 @@ import string
 import unicodedata
 import difflib
 from typing import List, Dict, Any, Optional, Tuple, Union, Callable, Set, Generator
-from datetime import datetime
+from datetime import datetime, timezone
+import uuid
+import re
 import nltk
 from nltk.tokenize import sent_tokenize, word_tokenize
 import numpy as np
@@ -740,6 +743,58 @@ def get_spaced_repetition_interval(level: int, success: bool) -> int:
         return 15
     else:  # level >= 5
         return 30
+
+
+def generate_session_token() -> str:
+    """
+    Generate a unique session token.
+    
+    Returns:
+        str: Session token using UUID4
+    """
+    # Generate a UUID4 (random UUID)
+    token = str(uuid.uuid4())
+    
+    # Add timestamp for uniqueness
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    
+    return f"{timestamp}_{token}"
+    
+def get_timestamp() -> str:
+    """
+    Get current timestamp in ISO format.
+    
+    Returns:
+        str: Current timestamp in ISO format
+    """
+    return datetime.now(timezone.utc).isoformat()
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize a string to be used as a filename.
+    
+    Args:
+        filename (str): Original filename or string
+        
+    Returns:
+        str: Sanitized filename
+    """
+    # Remove invalid filename characters
+    invalid_chars = r'[<>:"/\\|?*]'
+    sanitized = re.sub(invalid_chars, '', filename)
+    
+    # Limit length and trim whitespace
+    sanitized = sanitized.strip()[:50]
+    
+    # Replace spaces with underscores
+    sanitized = sanitized.replace(' ', '_')
+    
+    # Ensure filename isn't empty
+    if not sanitized:
+        sanitized = "file"
+        
+    return sanitized
 
 
 # Example usage

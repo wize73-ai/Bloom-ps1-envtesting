@@ -5,6 +5,10 @@ from datetime import datetime
 
 T = TypeVar('T')
 
+class BaseRequest(BaseModel):
+    """Base class for all request models."""
+    pass
+
 class StatusEnum(str, Enum):
     SUCCESS = "success"
     ERROR = "error"

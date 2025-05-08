@@ -96,7 +96,7 @@ def load_config(force_reload: bool = False) -> Dict[str, Any]:
     
     # Start with default configuration
     config = _load_default_config()
-    logger.debug(f"Loaded default config: {config}")
+    logger.debug("Loaded default config (values omitted)")
     
     # Save default config file timestamp
     default_config_path = Path("config/default.json")
@@ -105,7 +105,7 @@ def load_config(force_reload: bool = False) -> Dict[str, Any]:
     
     # Override with environment-specific configuration
     env_config = _load_environment_config()
-    logger.debug(f"Loaded environment-specific config: {env_config}")
+    logger.debug("Loaded environment-specific config (values omitted)")
     config.update(env_config)
     
     # Save environment config file timestamp
@@ -115,12 +115,23 @@ def load_config(force_reload: bool = False) -> Dict[str, Any]:
     
     # Override with environment variables
     env_override = _load_environment_variables()
-    logger.debug(f"Loaded environment variables config: {env_override}")
+    logger.debug("Loaded environment variables config (values omitted)")
     config.update(env_override)
     
     # Validate the configuration
     config = validate_config(config)
-    logger.debug(f"Validated final config: {config}")
+    
+    # Log config sources instead of full content
+    if logger.isEnabledFor(logging.DEBUG):
+        sources = []
+        if default_config_path.exists():
+            sources.append(f"default: {default_config_path}")
+        if env_config_path.exists():
+            sources.append(f"{environment}: {env_config_path}")
+        if env_override:
+            sources.append("environment variables")
+        
+        logger.debug(f"Validated config merged from: {', '.join(sources)}")
     
     # Cache the configuration
     _config_cache[environment] = config
@@ -408,10 +419,15 @@ def validate_config(config: Dict[str, Any]) -> Dict[str, Any]:
         "log_dir": "logs"
     }
     
+    missing_keys = []
     for key, default_value in required_keys.items():
         if key not in config:
-            logger.warning(f"Missing required config key: {key}, using default: {default_value}")
+            missing_keys.append(key)
             config[key] = default_value
+    
+    # Log all missing keys at once rather than individually
+    if missing_keys:
+        logger.warning(f"Missing required config keys: {', '.join(missing_keys)}, using defaults")
     
     return config
 

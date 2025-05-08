@@ -197,34 +197,40 @@ class EnhancedModelManager:
         Args:
             timeout_per_model (float): Maximum time in seconds to wait for each model to unload
         """
-        console.print("[bold cyan]Unloading all models...[/bold cyan]")
+        # Log to file rather than console for better reliability during shutdown
+        logger.info("Unloading all models...")
+        
+        # Try console output but catch any errors - terminal might be unstable during shutdown
+        try:
+            console.print("[bold cyan]Unloading all models...[/bold cyan]")
+        except Exception as console_err:
+            logger.warning(f"Console error during shutdown: {console_err}")
         
         try:
             # Get list of loaded models
             model_types = list(self.loaded_models.keys())
             
             if not model_types:
-                console.print("[yellow]No models currently loaded[/yellow]")
+                logger.info("No models currently loaded")
+                try:
+                    console.print("[yellow]No models currently loaded[/yellow]")
+                except Exception:
+                    pass
                 return
             
             # Track failed unloads
             failed_unloads = []
             
-            # Progress tracking
-            with Progress(
-                SpinnerColumn(),
-                TextColumn("[bold blue]{task.description}"),
-                BarColumn(),
-                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                TimeElapsedColumn(),
-                console=console
-            ) as progress:
-                # Create overall task
-                task = progress.add_task(f"Unloading {len(model_types)} models", total=len(model_types))
+            # Check if app is shutting down - use simpler logging if we're in shutdown mode
+            is_shutdown_mode = asyncio.current_task().get_name().startswith("shutdown") if hasattr(asyncio.current_task(), "get_name") else False
+            
+            # Simplified approach without Rich progress bars during shutdown
+            if is_shutdown_mode:
+                logger.info("Using simplified unloading during shutdown")
                 
-                # Unload each model with timeout protection
+                # Unload each model without fancy progress tracking
                 for model_type in model_types:
-                    progress.update(task, description=f"Unloading {model_type}...")
+                    logger.info(f"Unloading {model_type}...")
                     
                     try:
                         # Create a task to unload the model with timeout
@@ -235,12 +241,11 @@ class EnhancedModelManager:
                         
                         if not success:
                             logger.warning(f"Model {model_type} unload timed out after {timeout_per_model}s")
-                            console.print(f"[yellow]⚠ Model {model_type} unload timed out after {timeout_per_model}s[/yellow]")
                             failed_unloads.append((model_type, "timeout"))
-                            # Proceed with cache cleanup despite timeout
+                        else:
+                            logger.info(f"Model {model_type} unloaded successfully")
                             
                         # Remove from local cache regardless of unload success
-                        # This ensures we don't keep references to potentially stale models
                         if model_type in self.loaded_models:
                             del self.loaded_models[model_type]
                         if model_type in self.model_metadata:
@@ -248,12 +253,88 @@ class EnhancedModelManager:
                     
                     except Exception as model_error:
                         logger.error(f"Error unloading model {model_type}: {str(model_error)}", exc_info=True)
-                        console.print(f"[red]Error unloading {model_type}: {str(model_error)}[/red]")
                         failed_unloads.append((model_type, str(model_error)))
-                        # Continue with other models despite error
+            else:
+                # Normal operation with Rich progress tracking
+                try:
+                    # Use a try-except block for the entire Progress context manager
+                    with Progress(
+                        SpinnerColumn(),
+                        TextColumn("[bold blue]{task.description}"),
+                        BarColumn(),
+                        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                        TimeElapsedColumn(),
+                        console=console
+                    ) as progress:
+                        # Create overall task
+                        task = progress.add_task(f"Unloading {len(model_types)} models", total=len(model_types))
+                        
+                        # Unload each model with timeout protection
+                        for model_type in model_types:
+                            try:
+                                progress.update(task, description=f"Unloading {model_type}...")
+                            except Exception as progress_error:
+                                logger.warning(f"Progress update error: {progress_error}")
+                            
+                            try:
+                                # Create a task to unload the model with timeout
+                                unload_task = asyncio.create_task(self._unload_model_with_timeout(model_type, timeout_per_model))
+                                
+                                # Wait for the task to complete
+                                success = await unload_task
+                                
+                                if not success:
+                                    logger.warning(f"Model {model_type} unload timed out after {timeout_per_model}s")
+                                    try:
+                                        console.print(f"[yellow]⚠ Model {model_type} unload timed out after {timeout_per_model}s[/yellow]")
+                                    except Exception:
+                                        pass
+                                    failed_unloads.append((model_type, "timeout"))
+                                
+                                # Remove from local cache regardless of unload success
+                                if model_type in self.loaded_models:
+                                    del self.loaded_models[model_type]
+                                if model_type in self.model_metadata:
+                                    del self.model_metadata[model_type]
+                            
+                            except Exception as model_error:
+                                logger.error(f"Error unloading model {model_type}: {str(model_error)}", exc_info=True)
+                                try:
+                                    console.print(f"[red]Error unloading {model_type}: {str(model_error)}[/red]")
+                                except Exception:
+                                    pass
+                                failed_unloads.append((model_type, str(model_error)))
+                            
+                            # Update progress (with error handling)
+                            try:
+                                progress.update(task, advance=1)
+                            except Exception as progress_error:
+                                logger.warning(f"Progress advance error: {progress_error}")
+                except Exception as progress_manager_error:
+                    # If the progress manager fails, fall back to simple console output
+                    logger.warning(f"Progress manager error: {progress_manager_error}. Falling back to simple unloading.")
                     
-                    # Update progress
-                    progress.update(task, advance=1)
+                    # Simpler fallback unloading
+                    for model_type in model_types:
+                        logger.info(f"Unloading {model_type}...")
+                        
+                        try:
+                            # Directly unload without fancy progress tracking
+                            success = await self._unload_model_with_timeout(model_type, timeout_per_model)
+                            
+                            if not success:
+                                logger.warning(f"Model {model_type} unload timed out after {timeout_per_model}s")
+                                failed_unloads.append((model_type, "timeout"))
+                                
+                            # Remove from local cache
+                            if model_type in self.loaded_models:
+                                del self.loaded_models[model_type]
+                            if model_type in self.model_metadata:
+                                del self.model_metadata[model_type]
+                                
+                        except Exception as model_error:
+                            logger.error(f"Error unloading model {model_type}: {str(model_error)}")
+                            failed_unloads.append((model_type, str(model_error)))
             
             # Force garbage collection
             gc.collect()
@@ -271,16 +352,31 @@ class EnhancedModelManager:
             
             # Report results
             if failed_unloads:
-                console.print(Panel(
-                    f"[bold yellow]Models unloaded with {len(failed_unloads)} issues:[/bold yellow]\n" +
-                    "\n".join([f"[yellow]- {model}: {reason}[/yellow]" for model, reason in failed_unloads]),
-                    border_style="yellow"
-                ))
+                logger.warning(f"Models unloaded with {len(failed_unloads)} issues")
+                for model, reason in failed_unloads:
+                    logger.warning(f"Unload issue: {model}: {reason}")
+                
+                # Try console output, but don't fail if it errors
+                try:
+                    console.print(Panel(
+                        f"[bold yellow]Models unloaded with {len(failed_unloads)} issues:[/bold yellow]\n" +
+                        "\n".join([f"[yellow]- {model}: {reason}[/yellow]" for model, reason in failed_unloads]),
+                        border_style="yellow"
+                    ))
+                except Exception:
+                    pass
             else:
-                console.print(Panel("[bold green]✓ All models unloaded successfully[/bold green]", border_style="green"))
+                logger.info("All models unloaded successfully")
+                try:
+                    console.print(Panel("[bold green]✓ All models unloaded successfully[/bold green]", border_style="green"))
+                except Exception:
+                    pass
         except Exception as e:
-            console.print(Panel(f"[bold red]⚠ Error unloading models:[/bold red]\n{str(e)}", border_style="red"))
-            logger.error(f"Error unloading models: {e}")
+            logger.error(f"Error unloading models: {e}", exc_info=True)
+            try:
+                console.print(Panel(f"[bold red]⚠ Error unloading models:[/bold red]\n{str(e)}", border_style="red"))
+            except Exception:
+                pass
     
     async def unload_model(self, model_type: Union[ModelType, str]) -> None:
         """
@@ -294,8 +390,15 @@ class EnhancedModelManager:
             model_type_str = model_type.value
         else:
             model_type_str = model_type
-            
-        console.print(f"[cyan]Unloading model: [yellow]{model_type_str}[/yellow][/cyan]")
+        
+        # Log to file first for reliability
+        logger.info(f"Unloading model: {model_type_str}")
+        
+        # Try console output but handle errors gracefully
+        try:
+            console.print(f"[cyan]Unloading model: [yellow]{model_type_str}[/yellow][/cyan]")
+        except Exception as console_err:
+            logger.warning(f"Console error while unloading {model_type_str}: {console_err}")
         
         try:
             # Use loader to unload model
@@ -315,12 +418,23 @@ class EnhancedModelManager:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 
-                console.print(f"[green]✓ Model {model_type_str} unloaded successfully[/green]")
+                logger.info(f"Model {model_type_str} unloaded successfully")
+                try:
+                    console.print(f"[green]✓ Model {model_type_str} unloaded successfully[/green]")
+                except Exception:
+                    pass
             else:
-                console.print(f"[yellow]⚠ Failed to unload model {model_type_str}[/yellow]")
+                logger.warning(f"Failed to unload model {model_type_str}")
+                try:
+                    console.print(f"[yellow]⚠ Failed to unload model {model_type_str}[/yellow]")
+                except Exception:
+                    pass
         except Exception as e:
-            console.print(f"[red]⚠ Error unloading model {model_type_str}: {str(e)}[/red]")
-            logger.error(f"Error unloading model {model_type_str}: {e}")
+            logger.error(f"Error unloading model {model_type_str}: {e}", exc_info=True)
+            try:
+                console.print(f"[red]⚠ Error unloading model {model_type_str}: {str(e)}[/red]")
+            except Exception:
+                pass
     
     async def _unload_model_with_timeout(self, model_type: str, timeout_seconds: float) -> bool:
         """
@@ -334,8 +448,14 @@ class EnhancedModelManager:
             bool: True if model was unloaded successfully, False if timeout occurred
         """
         try:
-            # Create a task for unloading
-            loop = asyncio.get_event_loop()
+            # Get or create event loop - handle case where this is called in thread without loop
+            try:
+                loop = asyncio.get_event_loop()
+            except RuntimeError:
+                # If there's no event loop in the current thread
+                logger.warning("No event loop in current thread, creating new loop for model unloading")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
             
             # Use run_in_executor to perform the unload in a separate thread
             # This allows us to set a timeout since unload operations can block
@@ -353,11 +473,14 @@ class EnhancedModelManager:
                 logger.warning(f"Unloading model {model_type} timed out after {timeout_seconds}s")
                 # Just return False to indicate timeout, the caller will handle cleanup
                 return False
+            except asyncio.CancelledError:
+                logger.warning(f"Unloading task for model {model_type} was cancelled")
+                return False
                 
         except Exception as e:
             logger.error(f"Error in _unload_model_with_timeout for {model_type}: {str(e)}", exc_info=True)
-            # Re-raise for the caller to handle
-            raise
+            # Don't re-raise to make shutdown more robust
+            return False
     
     async def reload_model(self, model_type: Union[ModelType, str]) -> Dict[str, Any]:
         """
@@ -414,7 +537,7 @@ class EnhancedModelManager:
         tokenizer = self.model_metadata.get(model_type, {}).get("tokenizer")
         
         # Create input for the model wrapper
-        from app.services.models.wrapper import ModelInput
+        from app.services.models.wrapper_base import ModelInput
         
         # Extract common fields from input_data
         text = input_data.get("text", "")
@@ -455,24 +578,41 @@ class EnhancedModelManager:
         
         # Call the appropriate method
         if method_name == "process":
-            # Synchronous processing
-            result = wrapper.process(model_input)
-            
-            # Check if result is already a dictionary
-            if isinstance(result, dict):
-                return result
-                
-            # Return all fields from ModelOutput including enhanced metrics
-            return {
-                "result": getattr(result, "result", None),
-                "metadata": getattr(result, "metadata", {}),
-                "metrics": getattr(result, "metrics", {}),
-                "performance_metrics": getattr(result, "performance_metrics", {}),
-                "memory_usage": getattr(result, "memory_usage", {}),
-                "operation_cost": getattr(result, "operation_cost", None),
-                "accuracy_score": getattr(result, "accuracy_score", None),
-                "truth_score": getattr(result, "truth_score", None)
-            }
+            try:
+                # Check if the process method is async
+                if asyncio.iscoroutinefunction(wrapper.process):
+                    # Asynchronous processing with proper await
+                    logger.debug(f"Process method for {model_type} is async, awaiting result")
+                    result = await wrapper.process(model_input)
+                else:
+                    # Synchronous processing
+                    logger.debug(f"Process method for {model_type} is synchronous")
+                    result = wrapper.process(model_input)
+                    
+                # Check if result is already a dictionary
+                if isinstance(result, dict):
+                    return result
+                    
+                # Return all fields from ModelOutput including enhanced metrics
+                return {
+                    "result": getattr(result, "result", None),
+                    "metadata": getattr(result, "metadata", {}),
+                    "metrics": getattr(result, "metrics", {}),
+                    "performance_metrics": getattr(result, "performance_metrics", {}),
+                    "memory_usage": getattr(result, "memory_usage", {}),
+                    "operation_cost": getattr(result, "operation_cost", None),
+                    "accuracy_score": getattr(result, "accuracy_score", None),
+                    "truth_score": getattr(result, "truth_score", None)
+                }
+            except Exception as e:
+                logger.error(f"Error in model processing: {str(e)}", exc_info=True)
+                return {
+                    "result": f"Error: {str(e)}",
+                    "metadata": {
+                        "error": str(e),
+                        "error_type": type(e).__name__
+                    }
+                }
         elif method_name == "process_async":
             # Asynchronous processing
             result = await wrapper.process_async(model_input)

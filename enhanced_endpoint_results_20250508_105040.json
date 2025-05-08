@@ -1,0 +1,828 @@
+{
+  "summary": {
+    "total": 14,
+    "pass": 12,
+    "fail": 2,
+    "error": 0,
+    "pass_percentage": 85.7,
+    "logs_found": 0,
+    "logs_percentage": 0.0,
+    "metrics_found": 0,
+    "metrics_percentage": 0.0,
+    "veracity_found": 0,
+    "veracity_percentage": 0.0
+  },
+  "categories": {
+    "Health": {
+      "total": 5,
+      "pass": 5,
+      "fail": 0,
+      "error": 0,
+      "logs_found": 0,
+      "metrics_found": 0,
+      "veracity_found": 0
+    },
+    "Pipeline": {
+      "total": 7,
+      "pass": 7,
+      "fail": 0,
+      "error": 0,
+      "logs_found": 0,
+      "metrics_found": 0,
+      "veracity_found": 0
+    },
+    "Bloom": {
+      "total": 2,
+      "pass": 0,
+      "fail": 2,
+      "error": 0,
+      "logs_found": 0,
+      "metrics_found": 0,
+      "veracity_found": 0
+    }
+  },
+  "results": [
+    {
+      "endpoint": "GET /health",
+      "endpoint_name": "health",
+      "category": "Health",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "e2315b3c-f8ba-466f-9960-53d52fdc9dc4",
+      "time_ms": 18.13,
+      "response_sample": {
+        "status": "healthy",
+        "version": "1.0.0",
+        "environment": "development",
+        "uptime": 35.17657279968262,
+        "timestamp": "2025-05-08T10:50:18.629321",
+        "services": {
+          "database": "healthy",
+          "models": "healthy",
+          "pipeline": "healthy"
+        }
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint"
+    },
+    {
+      "endpoint": "GET /health/detailed",
+      "endpoint_name": "health_detailed",
+      "category": "Health",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "f16dbe34-c352-43b8-a1f7-7dcde518c6b3",
+      "time_ms": 262.79,
+      "response_sample": {
+        "status": "healthy",
+        "version": "1.0.0",
+        "environment": "development",
+        "uptime": 36.71225905418396,
+        "uptime_formatted": "36s",
+        "build_info": {
+          "python_version": "3.10.13",
+          "platform": "macOS-15.5-arm64-arm-64bit",
+          "build_date": "2025-04-28T00:00:00Z",
+          "build_id": "dev-20250428",
+          "git_commit": "unknown"
+        },
+        "components": [
+          {
+            "name": "processor",
+            "status": "healthy",
+            "version": null,
+            "details": {
+              "pipeline_count": 0,
+              "available_pipelines": []
+            },
+            "last_check": "2025-05-08T10:50:20.154329"
+          },
+          {
+            "name": "model_manager",
+            "status": "healthy",
+            "version": null,
+            "details": {
+              "loaded_models": 12,
+              "models_list": [
+                "language_detection",
+                "translation",
+                "ner_detection",
+                "simplifier",
+                "mbart_translation",
+                "embedding_model",
+                "anonymizer",
+                "speech_to_text",
+                "mt5_translation",
+                "rag_generator",
+                "rag_retriever",
+                "_system"
+              ],
+              "device": "cpu",
+              "low_memory_mode": false
+            },
+            "last_check": "2025-05-08T10:50:20.154329"
+          },
+          {
+            "name": "model_registry",
+            "status": "healthy",
+            "version": null,
+            "details": {
+              "total_models": 10,
+              "languages": 1,
+              "tasks": 14
+            },
+            "last_check": "2025-05-08T10:50:20.154329"
+          },
+          {
+            "name": "database",
+            "status": "healthy",
+            "version": null,
+            "details": {
+              "users_db": {
+                "status": "healthy",
+                "response_time": 0.0019741058349609375
+              },
+              "content_db": {
+                "status": "healthy",
+                "response_time": 0.0001308917999267578
+              },
+              "progress_db": {
+                "status": "healthy",
+                "response_time": 9.918212890625e-05
+              }
+            },
+            "last_check": "2025-05-08T10:50:20.154329"
+          },
+          {
+            "name": "metrics",
+            "status": "healthy",
+            "version": null,
+            "details": {
+              "total_requests": 1,
+              "successful_requests": 1,
+              "failed_requests": 0,
+              "avg_response_time": 0.010964155197143555,
+              "uptime": 0
+            },
+            "last_check": "2025-05-08T10:50:20.154329"
+          },
+          {
+            "name": "audit_logger",
+            "status": "healthy",
+            "version": null,
+            "details": {
+              "enabled": true
+            },
+            "last_check": "2025-05-08T10:50:20.154329"
+          },
+          {
+            "name": "hardware",
+            "status": "healthy",
+            "version": null,
+            "details": {
+              "total_memory": 0,
+              "available_memory": 0,
+              "has_gpu": false
+            },
+            "last_check": "2025-05-08T10:50:20.154329"
+          },
+          {
+            "name": "tokenizer",
+            "status": "healthy",
+            "version": null,
+            "details": {
+              "model_name": "google/mt5-small"
+            },
+            "last_check": "2025-05-08T10:50:20.154329"
+          },
+          {
+            "name": "cache",
+            "status": "healthy",
+            "version": null,
+            "details": {
+              "instances": [
+                "default",
+                "translation"
+              ],
+              "stats": {
+                "default": {
+                  "name": "default",
+                  "size": 0,
+                  "max_size": 1000,
+                  "hits": 0,
+                  "misses": 0,
+                  "hit_rate": 0.0,
+                  "evictions": 0,
+                  "enabled": true,
+                  "ttl_seconds": 3600,
+                  "bloom_compatible": true
+                },
+                "translation": {
+                  "name": "translation",
+                  "size": 0,
+                  "max_size": 2000,
+                  "hits": 0,
+                  "misses": 0,
+                  "hit_rate": 0.0,
+                  "evictions": 0,
+                  "enabled": true,
+                  "ttl_seconds": 7200,
+                  "bloom_compatible": true
+                }
+              }
+            },
+            "last_check": "2025-05-08T10:50:20.154329"
+          }
+        ],
+        "metrics": {
+          "cpu_usage": 4.6,
+          "memory_usage": 69.6,
+          "memory_available": 14962.59375,
+          "disk_usage": 2.4,
+          "disk_available": 424.56800079345703,
+          "load_average": [
+            2.2587890625,
+            2.115234375,
+            2.0751953125
+          ],
+          "process_memory": 6012.359375,
+          "open_files": 2
+        },
+        "timestamp": "2025-05-08T10:50:20.408899"
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint"
+    },
+    {
+      "endpoint": "GET /health/models",
+      "endpoint_name": "health_models",
+      "category": "Health",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "215453b8-0d28-4ec7-809d-b83245167c83",
+      "time_ms": 308.79,
+      "response_sample": {
+        "status": "degraded",
+        "message": "8/12 models verified",
+        "loaded_models": [
+          "language_detection",
+          "translation",
+          "ner_detection",
+          "simplifier",
+          "mbart_translation",
+          "embedding_model",
+          "anonymizer",
+          "speech_to_text"
+        ],
+        "device": "mps",
+        "model_details": {
+          "language_detection": {
+            "name": "language_detection",
+            "loaded": true,
+            "test_result": "success",
+            "response_time": 0.22470998764038086,
+            "status": "healthy"
+          },
+          "translation": {
+            "name": "translation",
+            "loaded": true,
+            "test_result": "success",
+            "response_time": 0.004844188690185547,
+            "status": "healthy"
+          },
+          "ner_detection": {
+            "name": "ner_detection",
+            "loaded": true,
+            "test_result": "skipped",
+            "message": "Functionality test not implemented for this model type",
+            "response_time": 3.814697265625e-06,
+            "status": "unknown"
+          },
+          "simplifier": {
+            "name": "simplifier",
+            "loaded": true,
+            "test_result": "success",
+            "response_time": 0.04799604415893555,
+            "status": "healthy"
+          },
+          "mbart_translation": {
+            "name": "mbart_translation",
+            "loaded": true,
+            "test_result": "success",
+            "response_time": 0.0004229545593261719,
+            "status": "healthy"
+          },
+          "embedding_model": {
+            "name": "embedding_model",
+            "loaded": true,
+            "test_result": "skipped",
+            "message": "Functionality test not implemented for this model type",
+            "response_time": 9.5367431640625e-07,
+            "status": "unknown"
+          },
+          "anonymizer": {
+            "name": "anonymizer",
+            "loaded": true,
+            "test_result": "skipped",
+            "message": "Functionality test not implemented for this model type",
+            "response_time": 9.5367431640625e-07,
+            "status": "unknown"
+          },
+          "speech_to_text": {
+            "name": "speech_to_text",
+            "loaded": true,
+            "test_result": "skipped",
+            "message": "Functionality test not implemented for this model type",
+            "response_time": 0.0,
+            "status": "unknown"
+          }
+        },
+        "verification_available": true,
+        "response_time": 0.30098581314086914,
+        "registry": {
+          "model_counts": {
+            "total": 10,
+            "by_type": {
+              "transformers": 8,
+              "sentence-transformers": 2
+            }
+          },
+          "supported_languages": [
+            "en"
+          ],
+          "supported_tasks": [
+            "language_detection",
+            "simplifier",
+            "embedding_model",
+            "mbart_translation",
+            "rag_generator",
+            "ner_detection",
+            "simplification",
+            "mt5_translation",
+            "embedding",
+            "rag_generation",
+            "anonymizer",
+            "translation",
+            "rag_retriever",
+            "anonymization"
+          ]
+        }
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint"
+    },
+    {
+      "endpoint": "GET /readiness",
+      "endpoint_name": "readiness",
+      "category": "Health",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "d1b57f6a-28c7-405c-af36-275ec1e8ea13",
+      "time_ms": 30.76,
+      "response_sample": {
+        "status": "ready",
+        "message": "All critical components are ready",
+        "checks": {
+          "processor": {
+            "status": "passed",
+            "message": "Processor initialized"
+          },
+          "model_manager": {
+            "status": "passed",
+            "message": "Model manager initialized"
+          },
+          "models": {
+            "status": "passed",
+            "message": "All critical models loaded",
+            "details": {
+              "loaded_models": [
+                "language_detection",
+                "translation",
+                "ner_detection",
+                "simplifier",
+                "mbart_translation",
+                "embedding_model",
+                "anonymizer",
+                "speech_to_text",
+                "mt5_translation",
+                "rag_generator",
+                "rag_retriever",
+                "_system"
+              ],
+              "critical_models": {
+                "language_detection": true,
+                "translation": true
+              }
+            }
+          },
+          "database": {
+            "status": "passed",
+            "message": "Persistence manager initialized"
+          },
+          "metrics": {
+            "status": "passed",
+            "message": "Metrics collector initialized"
+          }
+        },
+        "response_time": 0.022572755813598633
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint"
+    },
+    {
+      "endpoint": "GET /liveness",
+      "endpoint_name": "liveness",
+      "category": "Health",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "24c7839d-24f6-4a4d-ad6d-9bd2cfb3f204",
+      "time_ms": 7.97,
+      "response_sample": {
+        "status": "alive"
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint"
+    },
+    {
+      "endpoint": "POST /pipeline/translate",
+      "endpoint_name": "pipeline_translate",
+      "category": "Pipeline",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "14af20f8-0a40-430a-a1b2-47131833a554",
+      "time_ms": 11.99,
+      "response_sample": {
+        "status": "success",
+        "message": "Translation completed successfully",
+        "data": {
+          "source_text": "Hello, how are you? My name is John and I live at 123 Main St. I'm 42 years old and have $5000 in my account.",
+          "translated_text": "Error: Error processing model: text input must of type `str` (single example), `List[str]` (batch or single pretokenized example) or `List[List[str]]` (batch of pretokenized examples).",
+          "source_language": "en",
+          "target_language": "es",
+          "confidence": 0.0,
+          "model_id": "default",
+          "process_time": 0.0015096664428710938,
+          "word_count": 25,
+          "character_count": 0,
+          "detected_language": null,
+          "verified": false,
+          "verification_score": null,
+          "model_used": "translation",
+          "used_fallback": false,
+          "fallback_model": null,
+          "performance_metrics": {
+            "tokens_per_second": 20242.779922779922,
+            "latency_ms": 1.2350082397460938,
+            "throughput": 88258.52046332047
+          },
+          "memory_usage": {
+            "peak_mb": 150.0,
+            "allocated_mb": 120.0,
+            "util_percent": 75.0
+          },
+          "operation_cost": 0.07300000000000001,
+          "accuracy_score": 0.9,
+          "truth_score": 0.855
+        },
+        "errors": null,
+        "metadata": {
+          "request_id": "4cc7010a-cff9-4b5d-881a-b2480fa6c65c",
+          "timestamp": "2025-05-08T14:50:26.836043Z",
+          "version": "1.0.0",
+          "process_time": 0.0015096664428710938,
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null,
+          "accuracy_score": null,
+          "truth_score": null
+        }
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint",
+      "veracity_found": false,
+      "veracity_error": "No veracity entries found for the request ID"
+    },
+    {
+      "endpoint": "POST /pipeline/translate",
+      "endpoint_name": "translate_with_numbers",
+      "category": "Pipeline",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "a9009945-07b9-48c0-b733-4dabe8a49659",
+      "time_ms": 6.62,
+      "response_sample": {
+        "status": "success",
+        "message": "Translation completed successfully",
+        "data": {
+          "source_text": "The contract was signed on January 15, 2025. The total amount is $4,250.75 for 3 services.",
+          "translated_text": "Error: Error processing model: text input must of type `str` (single example), `List[str]` (batch or single pretokenized example) or `List[List[str]]` (batch of pretokenized examples).",
+          "source_language": "en",
+          "target_language": "es",
+          "confidence": 0.0,
+          "model_id": "default",
+          "process_time": 0.0026159286499023438,
+          "word_count": 16,
+          "character_count": 0,
+          "detected_language": null,
+          "verified": false,
+          "verification_score": null,
+          "model_used": "translation",
+          "used_fallback": false,
+          "fallback_model": null,
+          "performance_metrics": {
+            "tokens_per_second": 6425.590195327461,
+            "latency_ms": 2.4900436401367188,
+            "throughput": 36143.944848716965
+          },
+          "memory_usage": {
+            "peak_mb": 150.0,
+            "allocated_mb": 120.0,
+            "util_percent": 75.0
+          },
+          "operation_cost": 0.064,
+          "accuracy_score": 0.9,
+          "truth_score": 0.855
+        },
+        "errors": null,
+        "metadata": {
+          "request_id": "ab7ef474-9576-4eb4-8819-3dd894bb57ee",
+          "timestamp": "2025-05-08T14:50:28.366738Z",
+          "version": "1.0.0",
+          "process_time": 0.0026159286499023438,
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null,
+          "accuracy_score": null,
+          "truth_score": null
+        }
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint",
+      "veracity_found": false,
+      "veracity_error": "No veracity entries found for the request ID"
+    },
+    {
+      "endpoint": "POST /pipeline/detect",
+      "endpoint_name": "pipeline_detect",
+      "category": "Pipeline",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "525b6a31-3d68-4ed0-9b9d-c4fedaa126fb",
+      "time_ms": 10.6,
+      "response_sample": {
+        "status": "success",
+        "message": "Language detection completed successfully",
+        "data": {
+          "text": "Hello, how are you?",
+          "detected_language": "en",
+          "confidence": 0.839917778968811,
+          "alternatives": null,
+          "process_time": 0.000141143798828125,
+          "performance_metrics": {},
+          "memory_usage": {},
+          "operation_cost": null,
+          "accuracy_score": null,
+          "truth_score": null
+        },
+        "errors": null,
+        "metadata": {
+          "request_id": "7f9e01d2-7915-4f9f-b976-eeed6de99088",
+          "timestamp": "2025-05-08T14:50:29.898719Z",
+          "version": "1.0.0",
+          "process_time": 0.000141143798828125,
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null,
+          "accuracy_score": null,
+          "truth_score": null
+        }
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint"
+    },
+    {
+      "endpoint": "POST /pipeline/detect-language",
+      "endpoint_name": "pipeline_detect-language",
+      "category": "Pipeline",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "919a1607-49a6-4662-b93e-473a1e70c638",
+      "time_ms": 9.82,
+      "response_sample": {
+        "status": "success",
+        "message": "Language detection completed successfully",
+        "data": {
+          "text": "Hello, how are you?",
+          "detected_language": "en",
+          "confidence": 0.839917778968811,
+          "alternatives": null,
+          "process_time": 0.00015997886657714844,
+          "performance_metrics": {},
+          "memory_usage": {},
+          "operation_cost": null,
+          "accuracy_score": null,
+          "truth_score": null
+        },
+        "errors": null,
+        "metadata": {
+          "request_id": "de750e8c-7d1c-4ce0-899d-959cd8f87289",
+          "timestamp": "2025-05-08T14:50:31.424479Z",
+          "version": "1.0.0",
+          "process_time": 0.00015997886657714844,
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null,
+          "accuracy_score": null,
+          "truth_score": null
+        }
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint"
+    },
+    {
+      "endpoint": "POST /pipeline/simplify",
+      "endpoint_name": "pipeline_simplify",
+      "category": "Pipeline",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "d4d7cb41-d221-4912-bb9b-386ec06fc380",
+      "time_ms": 11.58,
+      "response_sample": {
+        "status": "success",
+        "message": "Text simplification completed successfully",
+        "data": {
+          "source_text": "The patient presents with cardiomyopathy and requires immediate medical intervention.",
+          "simplified_text": "The patient presents with cardiomyopathy and requires immediate medical intervention.",
+          "language": "en",
+          "target_level": "simple",
+          "process_time": 0.0007550716400146484,
+          "model_used": "simplifier",
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null
+        },
+        "errors": null,
+        "metadata": {
+          "request_id": "8e7d8c1a-9dc7-4a78-9772-43a9a639e9ec",
+          "timestamp": "2025-05-08T14:50:32.958330Z",
+          "version": "1.0.0",
+          "process_time": 0.0007550716400146484,
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null,
+          "accuracy_score": null,
+          "truth_score": null
+        }
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint",
+      "veracity_found": false,
+      "veracity_error": "No veracity entries found for the request ID"
+    },
+    {
+      "endpoint": "POST /pipeline/summarize",
+      "endpoint_name": "pipeline_summarize",
+      "category": "Pipeline",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "a838f297-74c7-4f5b-975e-3befeb0214c9",
+      "time_ms": 10.08,
+      "response_sample": {
+        "status": "success",
+        "message": "Text summarization completed successfully",
+        "data": {
+          "source_text": "This is a long text that needs to be summarized. It contains multiple sentences and paragraphs. The summary should capture the main points about climate change and its effects on global agriculture. Farmers around the world are experiencing challenges due to changing weather patterns.",
+          "summary": "This is a long text that needs to be summarized. .",
+          "language": "en",
+          "summary_type": "extractive",
+          "compression_ratio": 0.75,
+          "word_count": 11,
+          "sentence_count": 2,
+          "process_time": 0.0001361370086669922,
+          "model_used": "fallback_summarizer",
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null
+        },
+        "errors": null,
+        "metadata": {
+          "request_id": "f12ef832-f0b0-446f-999c-1401a116b69a",
+          "timestamp": "2025-05-08T14:50:34.486164Z",
+          "version": "1.0.0",
+          "process_time": 0.0001361370086669922,
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null,
+          "accuracy_score": null,
+          "truth_score": null
+        }
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint",
+      "veracity_found": false,
+      "veracity_error": "No veracity entries found for the request ID"
+    },
+    {
+      "endpoint": "POST /pipeline/anonymize",
+      "endpoint_name": "pipeline_anonymize",
+      "category": "Pipeline",
+      "status": "PASS",
+      "status_code": 200,
+      "request_id": "d4e947e4-acab-431e-815f-1b947ed07c5f",
+      "time_ms": 24.8,
+      "response_sample": {
+        "status": "success",
+        "message": "Text anonymization completed successfully",
+        "data": {
+          "source_text": "John Smith lives at 123 Main St. His phone number is 555-123-4567 and his email is john.smith@example.com. His social security number is 123-45-6789.",
+          "anonymized_text": "John Smith lives at 123 Main St. His phone number is 555-123-4567 and his email is john.smith@example.com. His social security number is 123-45-6789.",
+          "language": "en",
+          "strategy": "mask",
+          "entities_found": null,
+          "process_time": 0.012195825576782227,
+          "model_used": "anonymizer",
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null
+        },
+        "errors": null,
+        "metadata": {
+          "request_id": "afedd04e-bd02-452d-94c0-950f4c198641",
+          "timestamp": "2025-05-08T14:50:36.031891Z",
+          "version": "1.0.0",
+          "process_time": 0.012195825576782227,
+          "performance_metrics": null,
+          "memory_usage": null,
+          "operation_cost": null,
+          "accuracy_score": null,
+          "truth_score": null
+        }
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint"
+    },
+    {
+      "endpoint": "POST /bloom/translate",
+      "endpoint_name": "bloom_translate",
+      "category": "Bloom",
+      "status": "FAIL",
+      "status_code": 404,
+      "request_id": "3b1158ac-d4ce-414b-abc3-37a4b8297143",
+      "time_ms": 8.27,
+      "response_sample": {
+        "detail": "Not Found"
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint",
+      "veracity_found": false,
+      "veracity_error": "No veracity entries found for the request ID"
+    },
+    {
+      "endpoint": "POST /bloom/simplify",
+      "endpoint_name": "bloom_simplify",
+      "category": "Bloom",
+      "status": "FAIL",
+      "status_code": 404,
+      "request_id": "c2cef2c9-3155-42a4-934b-891d313ca480",
+      "time_ms": 9.57,
+      "response_sample": {
+        "detail": "Not Found"
+      },
+      "logs_found": false,
+      "log_entries_error": "Log file does not exist",
+      "metrics_found": false,
+      "metrics_error": "No metrics entries found for the endpoint",
+      "veracity_found": false,
+      "veracity_error": "No veracity entries found for the request ID"
+    }
+  ],
+  "timestamp": 1746715840.617561,
+  "datetime": "2025-05-08T10:50:40.617563",
+  "server": "http://localhost:8000"
+}
