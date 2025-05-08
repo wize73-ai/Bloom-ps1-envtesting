@@ -1359,6 +1359,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 # Include routers
 app.include_router(health_router)
 
+# Import direct TTS router
+from app.api.routes.direct_tts import router as direct_tts_router
+app.include_router(direct_tts_router)  # Direct TTS endpoint
+
 # Include pipeline routes both with and without the /pipeline prefix for compatibility
 app.include_router(pipeline_router, tags=["Pipeline"]) # No prefix for compatibility with tests
 app.include_router(pipeline_router, prefix="/pipeline", tags=["Pipeline"]) # With prefix for API docs

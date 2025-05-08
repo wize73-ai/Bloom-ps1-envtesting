@@ -9,6 +9,8 @@ and proper formatting for terminal display.
 import sys
 import logging
 import platform
+import threading
+import time
 from logging.handlers import RotatingFileHandler
 from datetime import datetime
 from typing import Optional, Any, List, Dict, Union, Callable
@@ -17,6 +19,12 @@ from colorama import Fore, Back, Style
 from colorama import init
 init(autoreset=True)
 from app.ui.colors import colors
+
+from rich.console import Console as RichConsole
+from rich.panel import Panel
+
+# Create a thread lock for console output
+console_lock = threading.Lock()
 
 class ColoredFormatter(logging.Formatter):
     """Custom formatter for colored terminal output."""
@@ -40,7 +48,13 @@ class ColoredFormatter(logging.Formatter):
     def format(self, record):
         orig_levelname = record.levelname
         orig_module = getattr(record, "module", "unknown")
+        orig_message = record.getMessage()
 
+        # Truncate large config dumps from config module
+        if orig_module == "config" and len(orig_message) > 500:
+            if "config" in orig_message.lower() and "{" in orig_message and "}" in orig_message:
+                record.msg = f"{orig_message.split('{', 1)[0]}... (content truncated)"
+        
         levelname = record.levelname
         color = self.LEVEL_COLORS.get(levelname, "")
         icon = self.LEVEL_ICONS.get(levelname, "")
@@ -58,6 +72,8 @@ class ColoredFormatter(logging.Formatter):
         # Restore original values
         record.levelname = orig_levelname
         record.module = orig_module
+        if hasattr(record, 'msg') and orig_message != record.getMessage():
+            record.msg = orig_message
 
         return result
 
@@ -264,6 +280,29 @@ class Console:
                 
             self.print(f"  {key_str}: {value_str}")
 
+    def print_rich_panel(self, title: str, content: str, style: str = "blue") -> None:
+        """
+        Print a Rich panel with thread-safe handling.
+        
+        Args:
+            title: Panel title
+            content: Panel content
+            style: Panel style/color
+        """
+        # Small delay to allow standard logging to complete
+        time.sleep(0.2)
+        
+        # Create a Rich panel
+        panel = Panel(content, title=title, border_style=style)
+        
+        # Use lock to prevent overlapping panels
+        with console_lock:
+            # Print the panel through rich_console
+            rich_console.print(panel)
+            
+        # Small delay after panel to prevent immediate logging overlap
+        time.sleep(0.1)
+
 
 def setup_console_logging(level: str = "INFO") -> logging.Logger:
     """
@@ -406,7 +445,28 @@ def log_with_color(message: str, color: str = None, logger: Optional[logging.Log
     else:
         # Otherwise, print directly to stdout
         print(colored_message)
-from rich.console import Console as RichConsole
 
-# Export a global rich.console.Console instance for global usage
+# For Rich panels and advanced rendering
+rich_console = RichConsole()
+
+# For compatibility and to avoid changing imports elsewhere
 console = RichConsole()
+
+# Import AsyncConsole for advanced thread-safe usage
+try:
+    from app.ui.async_console import async_console
+except ImportError:
+    # If the async_console module isn't available, provide a compatibility layer
+    class DummyAsyncConsole:
+        def __getattr__(self, name):
+            def method(*args, **kwargs):
+                # Delegate to rich_console with thread safety
+                with console_lock:
+                    time.sleep(0.1)  # Small delay
+                    method = getattr(rich_console, name, lambda *a, **k: None)
+                    result = method(*args, **kwargs)
+                    time.sleep(0.1)  # Small delay after
+                    return result
+            return method
+            
+    async_console = DummyAsyncConsole()

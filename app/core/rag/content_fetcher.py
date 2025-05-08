@@ -5,6 +5,9 @@ This module handles fetching and processing content from various web sources
 for the Retrieval-Augmented Generation system.
 """
 
+# Import hashlib at the top level
+import hashlib
+
 import time
 import asyncio
 import logging
@@ -31,6 +34,154 @@ from app.utils.logging import get_logger
 from app.core.rag.indexer import Indexer, TextProcessor
 
 logger = get_logger(__name__)
+
+class ContentProcessor:
+    """
+    Process and transform content for RAG indexing.
+    
+    This class handles text processing for various content formats 
+    to prepare them for RAG indexing.
+    """
+    
+    def __init__(self, config: Optional[Dict[str, Any]] = None):
+        """
+        Initialize the content processor.
+        
+        Args:
+            config: Optional configuration dictionary
+        """
+        self.config = config or {}
+        
+    def process_content(
+        self, 
+        content: str, 
+        content_format: ContentFormat,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Process content based on its format.
+        
+        Args:
+            content: The content to process
+            content_format: The format of the content
+            metadata: Optional metadata to include
+            
+        Returns:
+            Processed content with metadata
+        """
+        metadata = metadata or {}
+        
+        if content_format == ContentFormat.HTML:
+            return self._process_html(content, metadata)
+        elif content_format == ContentFormat.MARKDOWN:
+            return self._process_markdown(content, metadata)
+        elif content_format == ContentFormat.JSON:
+            return self._process_json(content, metadata)
+        elif content_format == ContentFormat.TEXT:
+            return self._process_text(content, metadata)
+        else:
+            # Default to text processing
+            return self._process_text(content, metadata)
+    
+    def _process_html(self, content: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Process HTML content."""
+        try:
+            soup = BeautifulSoup(content, "html.parser")
+            
+            # Remove unwanted elements
+            for element in soup.select("script, style, meta, link"):
+                element.decompose()
+                
+            # Extract title if available
+            title = soup.title.text if soup.title else ""
+            
+            # Extract text
+            text = soup.get_text(separator="\n", strip=True)
+            
+            return {
+                "content": text,
+                "metadata": {
+                    **metadata,
+                    "format": "html",
+                    "title": title
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error processing HTML: {str(e)}")
+            return {
+                "content": content,
+                "metadata": {**metadata, "format": "html", "error": str(e)}
+            }
+    
+    def _process_markdown(self, content: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Process Markdown content."""
+        try:
+            # Extract title from first heading if available
+            title_match = re.search(r'^#\s+(.+)$', content, re.MULTILINE)
+            title = title_match.group(1) if title_match else ""
+            
+            return {
+                "content": content,
+                "metadata": {
+                    **metadata,
+                    "format": "markdown",
+                    "title": title
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error processing Markdown: {str(e)}")
+            return {
+                "content": content,
+                "metadata": {**metadata, "format": "markdown", "error": str(e)}
+            }
+    
+    def _process_json(self, content: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Process JSON content."""
+        try:
+            data = json.loads(content)
+            
+            # Extract text from JSON
+            extracted_text = self._extract_text_from_json(data)
+            
+            return {
+                "content": "\n\n".join(extracted_text),
+                "metadata": {
+                    **metadata,
+                    "format": "json"
+                }
+            }
+        except Exception as e:
+            logger.error(f"Error processing JSON: {str(e)}")
+            return {
+                "content": content,
+                "metadata": {**metadata, "format": "json", "error": str(e)}
+            }
+    
+    def _process_text(self, content: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Process plain text content."""
+        return {
+            "content": content,
+            "metadata": {
+                **metadata,
+                "format": "text"
+            }
+        }
+    
+    def _extract_text_from_json(self, data: Any) -> List[str]:
+        """Extract text fields from JSON data."""
+        result = []
+        
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if isinstance(value, str) and len(value) > 10:
+                    result.append(f"{key}: {value}")
+                elif isinstance(value, (dict, list)):
+                    result.extend(self._extract_text_from_json(value))
+        elif isinstance(data, list):
+            for item in data:
+                result.extend(self._extract_text_from_json(item))
+                
+        return result
 
 class ContentFetcher:
     """

@@ -1,0 +1,29 @@
+[run]
+source = app
+omit =
+    app/scripts/*
+    app/tests/*
+    */__pycache__/*
+    */venv/*
+    */.venv/*
+    */migrations/*
+    */tests/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    raise ImportError
+    except ImportError
+    def main()
+    if TYPE_CHECKING:
+
+[html]
+directory = coverage-reports/html
+title = CasaLingua Test Coverage Report
+
+[xml]
+output = coverage-reports/coverage.xml

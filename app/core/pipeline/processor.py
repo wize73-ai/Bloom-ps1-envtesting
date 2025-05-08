@@ -65,6 +65,8 @@ class UnifiedProcessor:
     def __init__(
             self, 
             model_manager, 
+            audit_logger=None,
+            metrics=None,
             config: Dict[str, Any] = None, 
             registry_config: Optional[Dict[str, Any]] = None
         ):
@@ -73,6 +75,8 @@ class UnifiedProcessor:
         
         Args:
             model_manager: Model manager instance for accessing models
+            audit_logger: AuditLogger instance for logging operations
+            metrics: MetricsCollector instance for collecting metrics
             config: Configuration dictionary
             registry_config: Registry configuration for models
         """
@@ -98,10 +102,12 @@ class UnifiedProcessor:
         # RAG components
         self.rag_expert = None
         
-        # Auditing and metrics - these will be set externally
-        self.audit_logger = None  # Will be set from main.py
-        self.metrics = None  # Will be set from main.py
-        self.metrics_collector = None  # For backward compatibility
+        # Auditing and metrics
+        # Initialize audit logger if not provided
+        self.audit_logger = audit_logger or AuditLogger(self.config)
+        # Initialize metrics if not provided
+        self.metrics = metrics or MetricsCollector.get_instance(self.config)
+        self.metrics_collector = self.metrics  # For backward compatibility
         self.veracity_auditor = VeracityAuditor(self.config)
         
         # Session storage
@@ -134,12 +140,12 @@ class UnifiedProcessor:
         init_tasks = [
             self._initialize_translation_pipeline(),
             self._initialize_language_detector(),
-            self._initialize_stt_pipeline()
-            # Other initializations commented out for now
-            # self._initialize_simplifier(),
+            self._initialize_stt_pipeline(),
+            self._initialize_tts_pipeline(),  # Add TTS pipeline initialization
+            self._initialize_simplifier(),
+            # Other initializations
             # self._initialize_anonymizer(),
             # self._initialize_summarizer(),
-            # self._initialize_tts_pipeline(),
         ]
         
         # Wait for core components to initialize
@@ -259,6 +265,7 @@ class UnifiedProcessor:
     async def detect_language(
         self,
         text: str,
+        detailed: bool = True,
         confidence_threshold: float = 0.6,
         user_id: Optional[str] = None,
         request_id: Optional[str] = None
@@ -268,6 +275,7 @@ class UnifiedProcessor:
         
         Args:
             text: The text to detect language
+            detailed: Whether to include detailed information
             confidence_threshold: Minimum confidence threshold
             user_id: Optional user ID for metrics
             request_id: Optional request ID for correlation
@@ -288,7 +296,11 @@ class UnifiedProcessor:
         
         # Detect language
         try:
-            detection_result = await self.language_detector.detect_language(text)
+            detection_result = await self.language_detector.detect_language(text, detailed=detailed)
+            
+            # Add success flag
+            detection_result["success"] = True
+            
         except Exception as e:
             logger.error(f"Error detecting language: {e}")
             
@@ -296,6 +308,7 @@ class UnifiedProcessor:
             processing_time = time.time() - start_time
             return {
                 "detected_language": "unknown",
+                "language": "unknown",  # For compatibility
                 "confidence": 0.0,
                 "possible_languages": [],
                 "processing_time": processing_time,
@@ -303,44 +316,45 @@ class UnifiedProcessor:
                 "error": str(e)
             }
         
-        # Calculate processing time
-        processing_time = time.time() - start_time
+        # Calculate processing time if not already present
+        if "processing_time" not in detection_result:
+            processing_time = time.time() - start_time
+            detection_result["processing_time"] = processing_time
+        else:
+            processing_time = detection_result["processing_time"]
         
-        # Calculate additional metrics
-        word_count = len(text.split())
-        char_count = len(text)
+        # Set word and character counts if not already present
+        if "word_count" not in detection_result:
+            detection_result["word_count"] = len(text.split())
+        if "character_count" not in detection_result:
+            detection_result["character_count"] = len(text)
+            
+        word_count = detection_result["word_count"]
+        char_count = detection_result["character_count"]
         
-        # Calculate approximate operation cost (based on input length)
-        # Simpler operations like language detection cost less
-        operation_cost = char_count * 0.00005  # $0.00005 per character
-        
-        # Calculate accuracy score based on confidence
-        accuracy_score = min(0.99, detection_result["confidence"] * 1.1)  # Slightly higher than confidence
-        
-        # Calculate approximate truth score
-        truth_score = min(0.99, detection_result["confidence"])  # Same as confidence for language detection
-        
-        # Add metrics to the result
-        detection_result["processing_time"] = processing_time
-        detection_result["word_count"] = word_count
-        detection_result["character_count"] = char_count
-        detection_result["operation_cost"] = operation_cost
-        detection_result["accuracy_score"] = accuracy_score
-        detection_result["truth_score"] = truth_score
-        
-        # Add performance metrics
-        detection_result["performance_metrics"] = {
-            "tokens_per_second": word_count / processing_time if processing_time > 0 else 0,
-            "latency_ms": processing_time * 1000,
-            "throughput": char_count / processing_time if processing_time > 0 else 0
-        }
-        
-        # Add memory usage metrics (mock data for now)
-        detection_result["memory_usage"] = {
-            "peak_mb": 120.0,
-            "allocated_mb": 100.0,
-            "util_percent": 65.0
-        }
+        # Set metrics if not already present from language detector
+        if "operation_cost" not in detection_result:
+            detection_result["operation_cost"] = char_count * 0.00005  # $0.00005 per character
+            
+        if "accuracy_score" not in detection_result:
+            detection_result["accuracy_score"] = min(0.99, detection_result["confidence"] * 1.1)
+            
+        if "truth_score" not in detection_result:
+            detection_result["truth_score"] = min(0.99, detection_result["confidence"])
+            
+        if "performance_metrics" not in detection_result:
+            detection_result["performance_metrics"] = {
+                "tokens_per_second": word_count / processing_time if processing_time > 0 else 0,
+                "latency_ms": processing_time * 1000,
+                "throughput": char_count / processing_time if processing_time > 0 else 0
+            }
+            
+        if "memory_usage" not in detection_result:
+            detection_result["memory_usage"] = {
+                "peak_mb": 120.0,
+                "allocated_mb": 100.0,
+                "util_percent": 65.0
+            }
         
         # Log the detection if user_id is provided
         if user_id:
@@ -353,9 +367,9 @@ class UnifiedProcessor:
                 processing_time=processing_time,
                 model_id="language_detection",
                 metadata={
-                    "operation_cost": operation_cost,
-                    "accuracy_score": accuracy_score,
-                    "truth_score": truth_score,
+                    "operation_cost": detection_result.get("operation_cost", 0),
+                    "accuracy_score": detection_result.get("accuracy_score", 0),
+                    "truth_score": detection_result.get("truth_score", 0),
                     "word_count": word_count,
                     "character_count": char_count
                 }

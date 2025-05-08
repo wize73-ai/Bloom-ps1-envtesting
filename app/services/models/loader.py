@@ -450,6 +450,37 @@ class ModelLoader:
         Returns:
             str: Device string (e.g., "cuda:0", "mps", "cpu")
         """
+                # Enhanced MBART detection - force CPU for all MBART variants when using MPS
+        if "mps" in self.available_devices:  # Only apply on MPS devices
+            # First check model_type-based detection
+            is_mbart_model = False
+            
+            # Check the model type name for MBART indicators
+            if model_type and any(mbart_marker in model_type.lower() for mbart_marker in [
+                "mbart", "translation", "multilingual"
+            ]):
+                # Look up the actual model name if possible
+                if model_type in self.registry:
+                    model_name = self.registry[model_type].model_name.lower()
+                    # More thorough check of model name
+                    if any(mbart_id in model_name for mbart_id in [
+                        "mbart", "facebook/mbart", "multilingual-translation", "nllb"
+                    ]):
+                        is_mbart_model = True
+                        logger.warning(f"⚠️ Forcing CPU device for MBART model {model_type} due to known MPS compatibility issues")
+                        return "cpu"
+                # Special case for translation model type with no registry entry
+                elif model_type == "translation" or model_type == "mbart_translation":
+                    logger.warning(f"⚠️ Forcing CPU device for translation model {model_type} due to potential MBART compatibility issues with MPS")
+                    return "cpu"
+            
+            # Special case for Spanish to English translation models
+            # These are known to have issues with MPS even if not explicitly MBART
+            if model_type and model_type.lower() in ["translation", "mbart_translation", "mt5_translation"]:
+                logger.warning(f"⚠️ Forcing CPU device for {model_type} model due to potential Spanish-English translation compatibility issues with MPS")
+                return "cpu"
+
+        
         # If no GPUs, use CPU
         if not self.available_devices or len(self.available_devices) == 1 and self.available_devices[0] == "cpu":
             return "cpu"
@@ -670,6 +701,8 @@ class ModelLoader:
             
         # If critical models failed, stop the bootstrap process
         if not tier1_success:
+            # Add delay before panel rendering
+            time.sleep(0.2)
             console.print(Panel(
                 "[bold red]⚠ Critical models failed to bootstrap[/bold red]\n"
                 "[yellow]The system cannot continue with minimum functionality[/yellow]",
@@ -708,6 +741,8 @@ class ModelLoader:
             self.pending_lazy_loads = {}
                 
         if success:
+            # Add delay before panel rendering
+            time.sleep(0.2)
             console.print(Panel(
                 "[bold green]✓ Progressive model bootstrap successful[/bold green]\n"
                 f"[green]Loaded {len(model_tiers['tier1']) + len(model_tiers['tier2'])} models immediately[/green]\n"
@@ -715,6 +750,8 @@ class ModelLoader:
                 border_style="green"
             ))
         else:
+            # Add delay before panel rendering
+            time.sleep(0.2)
             console.print(Panel(
                 "[bold yellow]⚠ Progressive model bootstrap partially successful[/bold yellow]\n"
                 "[green]Critical models loaded successfully[/green]\n"
@@ -928,6 +965,15 @@ class ModelLoader:
                     console.print(f"[cyan]Loading ONNX model for {model_type}...[/cyan]")
                     model = self._load_onnx_model(model_config)
                     
+                elif model_config.type == "pipeline" or getattr(model_config, "use_pipeline", False):
+                    # Load pipeline model - skip tokenizer completely
+                    logger.info(f"Loading pipeline model for {model_type}...")
+                    console.print(f"[cyan]Loading pipeline model for {model_type}...[/cyan]")
+                    
+                    # Skip tokenizer loading for pipelines
+                    model = self._load_pipeline_model(model_config, device)
+                    tokenizer = None  # Pipeline handles tokenization internally
+                    
                 else:
                     # Unsupported model type
                     raise ValueError(f"Unsupported model type: {model_config.type}")
@@ -1028,14 +1074,18 @@ class ModelLoader:
             
             # Show success message
             if is_fallback:
+                # Add delay before panel rendering
+                time.sleep(0.2)
                 console.print(Panel(
                     f"[bold yellow]✓ Successfully loaded fallback model:[/bold yellow] [yellow]{model_type}[/yellow]\n"
                     f"[dim]Replaces {original_model_type} • Loaded in {elapsed_time:.2f}s[/dim]",
                     border_style="yellow"
                 ))
             else:
+                # Add delay before panel rendering
+                time.sleep(0.2)
                 console.print(Panel(
-                    f"[bold green]✓ Successfully loaded model:[/bold green] [yellow]{model_type}[/yellow]\n"
+                    f"[bold green]✓ Successfully loaded model:[/bold green] [green]{model_type}[/green]\n"
                     f"[dim]Loaded in {elapsed_time:.2f}s[/dim]",
                     border_style="green"
                 ))
@@ -1208,6 +1258,27 @@ class ModelLoader:
             device = self._determine_device(model_type, model_size)
             logger.info(f"Auto-selected device {device} for {model_type} ({model_size})")
         
+
+        # Force CPU for MBART on MPS regardless of what was specified
+        if "mps" in device and model_config:
+            model_name = ""
+            task = ""
+            
+            # Get model name and task
+            if hasattr(model_config, "model_name"):
+                model_name = model_config.model_name.lower()
+            
+            if hasattr(model_config, "task"):
+                task = model_config.task.lower()
+            
+            # Check if this is an MBART model or translation task
+            is_mbart = "mbart" in model_name or "mbart" in task
+            is_translation = task == "translation" or task == "mbart_translation"
+            
+            if is_mbart or is_translation:
+                logger.warning(f"⚠️ Forcing CPU device for {model_config.model_name} due to MPS compatibility issues")
+                device = "cpu"  # Force CPU device
+
         logger.info(f"Loading Transformers model: {model_config.model_name} on {device}")
         
         # Get model kwargs
@@ -1394,7 +1465,7 @@ class ModelLoader:
                 )
             else:
                 # Default to AutoModel
-                model = AutoModel.from_pretrained(
+                model = MT5ForConditionalGeneration.from_pretrained(
                     model_config.model_name, 
                     **model_kwargs
                 )
@@ -1464,7 +1535,7 @@ class ModelLoader:
                             **model_kwargs
                         )
                     else:
-                        model = AutoModel.from_pretrained(
+                        model = MT5ForConditionalGeneration.from_pretrained(
                             model_config.model_name, 
                             **model_kwargs
                         )
@@ -1535,7 +1606,7 @@ class ModelLoader:
                                 **model_kwargs
                             )
                         else:
-                            model = AutoModel.from_pretrained(
+                            model = MT5ForConditionalGeneration.from_pretrained(
                                 model_config.model_name, 
                                 **model_kwargs
                             )
@@ -1681,6 +1752,114 @@ class ModelLoader:
             **tokenizer_kwargs
         )
     
+    def _load_pipeline_model(self, model_config: ModelConfig, device: str) -> Any:
+        """
+        Load a model using the transformers Pipeline API
+        
+        Args:
+            model_config (ModelConfig): Model configuration
+            device (str): Device to load model on
+            
+        Returns:
+            Any: Pipeline model
+        """
+        # Check if transformers is available
+        if not HAVE_TRANSFORMERS:
+            raise ImportError("transformers library is required for pipeline models")
+        
+        # Import pipeline from transformers
+        from transformers import pipeline
+        
+        logger.info(f"Loading pipeline model: {model_config.model_name} for task {model_config.pipeline_task}")
+        
+        # Get model kwargs
+        model_kwargs = model_config.model_kwargs or {}
+        
+        # Add cache directory
+        if "cache_dir" not in model_kwargs:
+            model_kwargs["cache_dir"] = self.get_cache_path(model_config.model_name)
+        
+        # TTS handling - check if this is a TTS model
+        is_tts_model = model_config.pipeline_task == "text-to-speech" 
+        
+        # For TTS models, try to use the direct TTS wrapper instead of pipeline
+        if is_tts_model:
+            try:
+                # Check if we have direct_tts_wrapper module
+                import importlib
+                try:
+                    direct_wrapper = importlib.import_module("app.core.pipeline.direct_tts_wrapper")
+                    logger.info("Using direct_tts_wrapper for TTS functionality")
+                    
+                    # The direct wrapper itself is the model
+                    return direct_wrapper
+                except ImportError:
+                    logger.warning("direct_tts_wrapper not found, trying standard pipeline")
+            except Exception as e:
+                logger.warning(f"Error importing direct_tts_wrapper: {e}")
+        
+        # Create the pipeline
+        try:
+            # Check if we have tokenizer arguments
+            tokenizer_kwargs = model_config.tokenizer_kwargs or {}
+            
+            # Create the pipeline with appropriate task and model
+            pipe = pipeline(
+                task=model_config.pipeline_task,
+                model=model_config.model_name,
+                device=device if device != "mps" else -1,  # Use -1 for CPU if MPS is specified
+                **model_kwargs
+            )
+            
+            logger.info(f"Successfully loaded pipeline for {model_config.pipeline_task} using {model_config.model_name}")
+            return pipe
+            
+        except Exception as e:
+            logger.error(f"Error creating pipeline for {model_config.model_name}: {e}")
+            
+            # For TTS, try loading the gTTS fallback module
+            if is_tts_model:
+                try:
+                    # Check if we have gtts installed
+                    import gtts
+                    logger.info("Using gTTS for TTS functionality instead of pipeline")
+                    
+                    # Try to use the direct TTS wrapper module as a fallback
+                    import importlib
+                    try:
+                        direct_wrapper = importlib.import_module("app.core.pipeline.direct_tts_wrapper") 
+                        logger.info("Successfully loaded direct_tts_wrapper as fallback for TTS")
+                        return direct_wrapper
+                    except ImportError:
+                        # If that fails too, just return a placeholder object that will use gTTS
+                        return type('DirectTTSFallback', (), {'process': lambda input_data: {'result': gtts.gTTS(text=input_data.get('text', ''), 
+                                                                                       lang=input_data.get('source_language', 'en')).get_audio()}})
+                except ImportError:
+                    logger.error("Neither TTS pipeline nor gTTS fallback available")
+                    # Continue to standard fallback
+            
+            # Try creating a pipeline without a specific model (using default)
+            try:
+                logger.info(f"Trying to create pipeline for {model_config.pipeline_task} without specific model")
+                pipe = pipeline(
+                    task=model_config.pipeline_task,
+                    device=device if device != "mps" else -1,
+                    **model_kwargs
+                )
+                logger.info(f"Successfully created default pipeline for {model_config.pipeline_task}")
+                return pipe
+            except Exception as e2:
+                logger.error(f"Error creating default pipeline: {e2}")
+                
+                # If TTS, return a placeholder object for later handling by TTSWrapper
+                if is_tts_model:
+                    logger.warning("Returning placeholder for TTS model to be handled by TTSWrapper")
+                    # Create a simple placeholder object that will be handled by TTSWrapper
+                    return None
+                
+                # For other model types, raise the error
+                raise ValueError(f"Failed to create pipeline for {model_config.pipeline_task}: {e}")
+    
     def _load_sentence_transformer(self, model_config: ModelConfig, device: str) -> Any:
         """
         Load a SentenceTransformer model
@@ -1814,7 +1993,9 @@ class ModelLoader:
             console.print(f"[cyan]Unloading {model_type}...[/cyan]")
             self.unload_model(model_type)
         
-        console.print(Panel("[bold green]✓ All models unloaded successfully[/bold green]", border_style="green"))
+        # Add delay before panel rendering
+            time.sleep(0.2)
+            console.print(Panel("[bold green]✓ All models unloaded successfully[/bold green]", border_style="green"))
         return True
     
     def get_loaded_models(self) -> List[str]:

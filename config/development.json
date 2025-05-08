@@ -26,17 +26,28 @@
       "sqlalchemy": "INFO",
       "transformers": "WARNING",
       "torch": "WARNING"
-    }
+    },
+    "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    "file": "logs/server.log",
+    "max_size": 10485760,
+    "backup_count": 5
   },
   "audit": {
     "enabled": true,
     "buffer_size": 100,
-    "flush_interval": 10
+    "flush_interval": 10,
+    "log_file": "logs/audit.log",
+    "include_request_headers": false,
+    "include_response_headers": false
   },
   "metrics": {
     "enabled": true,
     "save_interval": 300,
-    "detailed_logging": true
+    "detailed_logging": true,
+    "file": "logs/metrics.log",
+    "interval": 60,
+    "include_memory": true,
+    "include_performance": true
   },
   "security": {
     "jwt_secret": "dev-jwt-secret-key-replace-in-production",
@@ -57,8 +68,21 @@
     "translation": {
       "model_name": "facebook/nllb-200-distilled-600M",
       "model_type": "seq2seq",
-      "tasks": ["translation"],
-      "languages": ["en", "es", "fr", "de", "it", "zh", "ja", "ar", "ru", "pt"],
+      "tasks": [
+        "translation"
+      ],
+      "languages": [
+        "en",
+        "es",
+        "fr",
+        "de",
+        "it",
+        "zh",
+        "ja",
+        "ar",
+        "ru",
+        "pt"
+      ],
       "enabled": true,
       "version": "1.0.0",
       "size_gb": 2.0,
@@ -71,7 +95,9 @@
       "model_type": "seq2seq",
       "tokenizer_name": "philschmid/bart-large-cnn-samsum",
       "task": "summarization",
-      "languages": ["en"],
+      "languages": [
+        "en"
+      ],
       "framework": "transformers",
       "enabled": true,
       "version": "1.0.0",
@@ -83,8 +109,13 @@
     "verification": {
       "model_name": "microsoft/deberta-v3-xsmall",
       "model_type": "classifier",
-      "tasks": ["verification", "classification"],
-      "languages": ["en"],
+      "tasks": [
+        "verification",
+        "classification"
+      ],
+      "languages": [
+        "en"
+      ],
       "enabled": true,
       "version": "1.0.0",
       "size_gb": 0.5,
@@ -95,8 +126,15 @@
     "language_detection": {
       "name": "FastLangDetect",
       "task": "language-detection",
-      "tasks": ["language-detection"],
-      "languages": ["en", "es", "fr", "de"],
+      "tasks": [
+        "language-detection"
+      ],
+      "languages": [
+        "en",
+        "es",
+        "fr",
+        "de"
+      ],
       "path": "models/language-detection-model",
       "class": "FastLanguageDetector",
       "tokenizer": null,
@@ -153,7 +191,9 @@
     "dev_key_12345": {
       "key": "cslg_dev_12345_abcdef",
       "name": "Development API Key",
-      "scopes": ["*:*"],
+      "scopes": [
+        "*:*"
+      ],
       "created_by": "system",
       "created_at": "2025-04-28T00:00:00Z",
       "expires_at": "2026-04-28T00:00:00Z",
@@ -168,6 +208,19 @@
       "password_hash": "salt$hash",
       "role": "admin",
       "active": true
+    }
+  },
+  "veracity": {
+    "enabled": true,
+    "log_file": "logs/veracity.log",
+    "min_score": 0.7,
+    "check_translations": true,
+    "check_simplifications": true,
+    "check_summaries": true,
+    "metrics": {
+      "accuracy_threshold": 0.8,
+      "content_integrity_threshold": 0.85,
+      "semantic_threshold": 0.7
     }
   }
 }

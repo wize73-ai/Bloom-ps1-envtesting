@@ -18,6 +18,20 @@ from datetime import datetime
 from app.ui.console import setup_console_logging, setup_file_logging
 from app.utils.config import get_config_value
 
+class ConfigFilter(logging.Filter):
+    """
+    Filter to truncate large configuration dumps in log messages.
+    """
+    def filter(self, record):
+        if record.module == "config" and hasattr(record, "msg"):
+            # Check if this is a large config dump
+            msg = record.getMessage()
+            if len(msg) > 500 and ("config" in msg.lower() and "{" in msg and "}" in msg):
+                # Truncate the message
+                record.msg = f"{msg.split('{', 1)[0]}... (content truncated)"
+        return True
+
+
 class JSONFormatter(logging.Formatter):
     """
     JSON formatter for structured logging.
@@ -28,6 +42,10 @@ class JSONFormatter(logging.Formatter):
     
     def format(self, record):
         """Format the record as a JSON object."""
+        # Apply config filter to truncate large config dumps
+        config_filter = ConfigFilter()
+        config_filter.filter(record)
+        
         # Create base log record
         log_record = {
             "timestamp": datetime.fromtimestamp(record.created).isoformat(),
@@ -96,6 +114,9 @@ def configure_logging(config: Dict[str, Any]) -> logging.Logger:
     for handler in logger.handlers[:]:
         logger.removeHandler(handler)
     
+    # Create a config filter instance to be reused
+    config_filter = ConfigFilter()
+    
     # Always set up console logging
     console_level_str = "DEBUG" if get_config_value(config, "debug", False) else log_level_str
     try:
@@ -104,10 +125,18 @@ def configure_logging(config: Dict[str, Any]) -> logging.Logger:
         console_level = logging.INFO
     console_logger = setup_console_logging(console_level)
     
+    # Apply config filter to all handlers of the console logger
+    for handler in console_logger.handlers:
+        handler.addFilter(config_filter)
+    
     # Set up file logging
     if environment != "development" or get_config_value(config, "log_to_file", False):
         log_file = log_dir / "casalingua.log"
         setup_file_logging(logger, str(log_file), log_level_str)
+        
+        # Apply config filter to all handlers
+        for handler in logger.handlers:
+            handler.addFilter(config_filter)
     
     # Set up JSON logging for production
     if environment == "production" or get_config_value(config, "structured_logging", False):
@@ -119,6 +148,7 @@ def configure_logging(config: Dict[str, Any]) -> logging.Logger:
         )
         json_handler.setLevel(log_level)
         json_handler.setFormatter(JSONFormatter())
+        # Note: JSONFormatter already applies the ConfigFilter internally
         logger.addHandler(json_handler)
     
     # Set up module-specific loggers
@@ -126,6 +156,10 @@ def configure_logging(config: Dict[str, Any]) -> logging.Logger:
         module_logger = logging.getLogger(f"casalingua.{module}")
         module_logger.setLevel(log_level)
         module_logger.propagate = True  # Let the root logger handle it
+    
+    # Apply config filter to the config logger specifically
+    config_logger = logging.getLogger("casalingua.config")
+    config_logger.addFilter(config_filter)
     
     logger.info(f"Logging configured - Level: {log_level_str}, Environment: {environment}")
     return logger

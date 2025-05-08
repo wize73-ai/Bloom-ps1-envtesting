@@ -96,27 +96,40 @@ class BloomTranslationResponse(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     
     @classmethod
-    def from_casa_lingua_response(cls, casa_response: Dict[str, Any]):
+    def from_casa_lingua_response(cls, casa_response):
         """Create from CasaLingua response format."""
+        # Convert Pydantic model to dict if needed
+        if hasattr(casa_response, "dict"):
+            casa_response = casa_response.dict()
+            
         # Extract the inner data from CasaLingua BaseResponse wrapper
         if "data" in casa_response:
             data = casa_response["data"]
         else:
             data = casa_response
             
-        # Extract required fields
+        # Convert Pydantic model to dict if needed
+        if hasattr(data, "dict"):
+            data = data.dict()
+            
+        # Extract required fields with safe access
         translated_text = data.get("translated_text", "")
         source_language = data.get("source_language", "en")
         target_language = data.get("target_language", "en")
         confidence = data.get("confidence", 0.0)
         
+        # Get metadata or initialize with empty dict
+        casa_metadata = casa_response.get("metadata", {})
+        if hasattr(casa_metadata, "dict"):
+            casa_metadata = casa_metadata.dict()
+            
         # Create metadata dictionary
         metadata = {
             "processTime": data.get("process_time", 0.0),
             "wordCount": data.get("word_count", 0),
             "characterCount": data.get("character_count", 0),
             "modelId": data.get("model_id", "unknown"),
-            "cached": casa_response.get("metadata", {}).get("cached", False)
+            "cached": casa_metadata.get("cached", False)
         }
         
         # If there's verification data, add it
@@ -162,22 +175,35 @@ class BloomLanguageDetectionResponse(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     
     @classmethod
-    def from_casa_lingua_response(cls, casa_response: Dict[str, Any]):
+    def from_casa_lingua_response(cls, casa_response):
         """Create from CasaLingua response format."""
+        # Convert Pydantic model to dict if needed
+        if hasattr(casa_response, "dict"):
+            casa_response = casa_response.dict()
+            
         # Extract the inner data from CasaLingua BaseResponse wrapper
         if "data" in casa_response:
             data = casa_response["data"]
         else:
             data = casa_response
             
+        # Convert Pydantic model to dict if needed
+        if hasattr(data, "dict"):
+            data = data.dict()
+            
         # Extract required fields
         detected_language = data.get("detected_language", "en")
         confidence = data.get("confidence", 0.0)
         
+        # Get metadata or initialize with empty dict
+        casa_metadata = casa_response.get("metadata", {})
+        if hasattr(casa_metadata, "dict"):
+            casa_metadata = casa_metadata.dict()
+            
         # Create metadata dictionary
         metadata = {
             "processTime": data.get("process_time", 0.0),
-            "cached": casa_response.get("metadata", {}).get("cached", False)
+            "cached": casa_metadata.get("cached", False)
         }
         
         # Process alternatives if available
@@ -259,13 +285,21 @@ class BloomTextAnalysisResponse(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     
     @classmethod
-    def from_casa_lingua_response(cls, casa_response: Dict[str, Any]):
+    def from_casa_lingua_response(cls, casa_response):
         """Create from CasaLingua response format."""
+        # Convert Pydantic model to dict if needed
+        if hasattr(casa_response, "dict"):
+            casa_response = casa_response.dict()
+            
         # Extract the inner data from CasaLingua BaseResponse wrapper
         if "data" in casa_response:
             data = casa_response["data"]
         else:
             data = casa_response
+            
+        # Convert Pydantic model to dict if needed
+        if hasattr(data, "dict"):
+            data = data.dict()
             
         # Extract language
         language = data.get("language", "en")
@@ -274,6 +308,9 @@ class BloomTextAnalysisResponse(BaseModel):
         sentiment = None
         if data.get("sentiment"):
             sent_data = data["sentiment"]
+            if hasattr(sent_data, "dict"):
+                sent_data = sent_data.dict()
+                
             # Convert score to range expected by Bloom Housing
             score = sent_data.get("score", 0.0)
             magnitude = sent_data.get("magnitude", 0.0)
@@ -296,9 +333,19 @@ class BloomTextAnalysisResponse(BaseModel):
         entities = None
         if data.get("entities"):
             entities = []
-            for entity_data in data["entities"]:
+            entity_list = data["entities"]
+            
+            for entity_data in entity_list:
+                if hasattr(entity_data, "dict"):
+                    entity_data = entity_data.dict()
+                    
                 mentions = []
-                for mention in entity_data.get("mentions", []):
+                mention_list = entity_data.get("mentions", [])
+                
+                for mention in mention_list:
+                    if hasattr(mention, "dict"):
+                        mention = mention.dict()
+                        
                     mentions.append(BloomEntityMention(
                         text=mention.get("text", ""),
                         startOffset=mention.get("start", 0),
@@ -316,7 +363,12 @@ class BloomTextAnalysisResponse(BaseModel):
         topics = None
         if data.get("topics"):
             topics = []
-            for topic_data in data["topics"]:
+            topic_list = data["topics"]
+            
+            for topic_data in topic_list:
+                if hasattr(topic_data, "dict"):
+                    topic_data = topic_data.dict()
+                    
                 topics.append(BloomTopic(
                     name=topic_data.get("name", ""),
                     confidence=topic_data.get("confidence", 0.0)
@@ -325,12 +377,17 @@ class BloomTextAnalysisResponse(BaseModel):
         # Extract summary if available
         summary = data.get("summary")
         
+        # Get metadata or initialize with empty dict
+        casa_metadata = casa_response.get("metadata", {})
+        if hasattr(casa_metadata, "dict"):
+            casa_metadata = casa_metadata.dict()
+            
         # Create metadata dictionary
         metadata = {
             "processTime": data.get("process_time", 0.0),
             "wordCount": data.get("word_count", 0),
             "sentenceCount": data.get("sentence_count", 0),
-            "cached": casa_response.get("metadata", {}).get("cached", False)
+            "cached": casa_metadata.get("cached", False)
         }
         
         return cls(
@@ -407,16 +464,24 @@ class BloomDocumentTranslationResponse(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     
     @classmethod
-    def from_casa_lingua_response(cls, casa_response: Dict[str, Any]):
+    def from_casa_lingua_response(cls, casa_response):
         """Create from CasaLingua response format."""
+        # Convert Pydantic model to dict if needed
+        if hasattr(casa_response, "dict"):
+            casa_response = casa_response.dict()
+            
         # Extract the inner data from CasaLingua BaseResponse wrapper
         if "data" in casa_response:
             data = casa_response["data"]
         else:
             data = casa_response
+        
+        # Convert Pydantic model to dict if needed
+        if hasattr(data, "dict"):
+            data = data.dict()
             
         # Extract required fields
-        document_id = data.get("document_id", "")
+        document_id = data.get("document_id", "") or data.get("task_id", "")
         status = data.get("status", "error")
         progress = data.get("progress", 0.0)
         source_language = data.get("source_language", "en")
@@ -425,7 +490,7 @@ class BloomDocumentTranslationResponse(BaseModel):
         # Extract optional fields
         filename = data.get("filename")
         translated_filename = data.get("translated_filename")
-        download_url = data.get("download_url")
+        download_url = data.get("download_url") or data.get("document_url")
         
         # Create metadata dictionary
         metadata = {

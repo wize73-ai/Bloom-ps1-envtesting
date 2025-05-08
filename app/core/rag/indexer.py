@@ -8,7 +8,9 @@ import json
 import hashlib
 import re
 import logging
-from typing import List, Dict, Union, Tuple, Optional, Any, Callable, Iterator
+import uuid
+import tempfile
+from typing import List, Dict, Union, Tuple, Optional, Any, Callable, Iterator, BinaryIO
 from datetime import datetime
 from docx import Document
 import pandas as pd
@@ -18,13 +20,13 @@ from tqdm import tqdm
 from app.core.pipeline.tokenizer import TokenizerPipeline
 # ModelRegistry import for dynamic tokenizer loading
 from app.services.models.loader import ModelRegistry
+# Session manager for accessing user documents
+from app.services.storage.session_manager import SessionManager
+# Utils import
+from app.utils.logging import get_logger
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# Get logger
+logger = get_logger(__name__)
 
 class DocumentProcessor:
     """Base class for document processors"""
@@ -351,7 +353,9 @@ class Indexer:
     def __init__(self,
                 output_dir: str = "./index",
                 chunk_size: int = 500,
-                chunk_overlap: int = 50):
+                chunk_overlap: int = 50,
+                rag_expert=None,
+                processor=None):
         """
         Initialize the indexer
 
@@ -359,10 +363,17 @@ class Indexer:
             output_dir (str): Directory to save indexed documents
             chunk_size (int): Default chunk size for text processors
             chunk_overlap (int): Default chunk overlap for text processors
+            rag_expert: Optional RAG Expert instance to update with new documents
+            processor: Optional unified processor for document handling
         """
         self.output_dir = output_dir
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
+        self.rag_expert = rag_expert
+        self.processor = processor
+        
+        # Initialize session manager
+        self.session_manager = SessionManager()
 
         # Load tokenizer dynamically from registry for RAG retriever task
         registry = ModelRegistry()
@@ -497,6 +508,15 @@ class Indexer:
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(chunks, f, ensure_ascii=False, indent=2)
             logger.info(f"[Indexer] ✅ Saved {len(chunks)} chunks to '{output_file}'")
+            
+            # Update RAG expert's knowledge base if available
+            if self.rag_expert:
+                self.rag_expert.knowledge_base.extend(chunks)
+                # Trigger index rebuild
+                if hasattr(self.rag_expert, "_build_index"):
+                    import asyncio
+                    asyncio.create_task(self.rag_expert._build_index())
+                
             return output_file
         except Exception as e:
             logger.error(f"Error saving index: {e}")
@@ -531,6 +551,253 @@ class Indexer:
         
         output_path = self.save_index(chunks, output_file)
         return output_path, len(chunks)
+    
+    async def index_document_content(self,
+                                    document_content: bytes,
+                                    document_type: str,
+                                    filename: str,
+                                    metadata: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        """
+        Index document content directly from bytes
+        
+        Args:
+            document_content: The document content as bytes
+            document_type: MIME type of the document
+            filename: Original filename
+            metadata: Additional metadata
+            
+        Returns:
+            List of indexed document chunks
+        """
+        metadata = metadata or {}
+        document_id = metadata.get("document_id", str(uuid.uuid4()))
+        chunks = []
+        
+        try:
+            # Extract text based on document type
+            extracted_text = ""
+            
+            if self.processor:
+                # Use the unified processor if available
+                extraction_result = await self.processor.extract_document_text(
+                    document_content=document_content,
+                    document_type=document_type,
+                    options={"ocr_enabled": True},
+                    filename=filename,
+                    request_id=str(uuid.uuid4())
+                )
+                extracted_text = extraction_result.get("text", "")
+                
+                # Add processor extraction metadata
+                for key, value in extraction_result.get("metadata", {}).items():
+                    metadata[f"extraction_{key}"] = value
+            else:
+                # Fallback to basic extraction
+                # Save to temporary file for processors that need file paths
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    temp_file.write(document_content)
+                    temp_path = temp_file.name
+                
+                try:
+                    # Get file extension
+                    ext = os.path.splitext(filename)[1].lower()
+                    if ext in self.processors:
+                        # Use registered processor
+                        chunks = self.processors[ext].process(temp_path)
+                        # Extract text from chunks for further processing
+                        extracted_text = "\n\n".join([chunk.get("text", "") for chunk in chunks])
+                    else:
+                        # Try basic text decoding
+                        try:
+                            extracted_text = document_content.decode('utf-8')
+                        except UnicodeDecodeError:
+                            logger.warning(f"Unable to decode document: {filename}")
+                finally:
+                    # Clean up temp file
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        pass
+            
+            # If we got text but no chunks, create chunks
+            if extracted_text and not chunks:
+                text_processor = TextProcessor(self.chunk_size, self.chunk_overlap)
+                chunks = text_processor._chunk_text(extracted_text, filename)
+            
+            # Add metadata to chunks
+            for chunk in chunks:
+                if "metadata" not in chunk:
+                    chunk["metadata"] = {}
+                    
+                # Add document and indexing metadata
+                chunk["metadata"].update({
+                    "indexed_at": datetime.now().isoformat(),
+                    "document_id": document_id,
+                    "file_name": filename,
+                    "mime_type": document_type
+                })
+                
+                # Add any additional metadata
+                for key, value in metadata.items():
+                    chunk["metadata"][key] = value
+            
+            logger.info(f"Indexed document {filename} into {len(chunks)} chunks")
+            return chunks
+            
+        except Exception as e:
+            logger.error(f"Error indexing document content: {e}", exc_info=True)
+            return []
+    
+    async def index_session_document(self,
+                                    session_id: str,
+                                    document_id: str,
+                                    output_file: Optional[str] = None) -> Tuple[str, int]:
+        """
+        Index a document from a user session
+        
+        Args:
+            session_id: Session identifier
+            document_id: Document identifier
+            output_file: Optional output file path
+            
+        Returns:
+            Tuple with output file path and number of chunks
+        """
+        try:
+            # Get document from session
+            document_data = await self.session_manager.get_document(session_id, document_id)
+            if not document_data:
+                logger.warning(f"Document not found: {document_id} in session {session_id}")
+                return "", 0
+            
+            # Extract metadata and content
+            content = document_data.get("content", b"")
+            metadata = document_data.get("metadata", {})
+            filename = metadata.get("filename", f"document_{document_id}")
+            document_type = metadata.get("content_type", "application/octet-stream")
+            
+            # Index document content
+            chunks = await self.index_document_content(
+                document_content=content,
+                document_type=document_type,
+                filename=filename,
+                metadata={
+                    "document_id": document_id,
+                    "session_id": session_id,
+                    **metadata
+                }
+            )
+            
+            # Save chunks to file
+            output_path = self.save_index(chunks, output_file)
+            return output_path, len(chunks)
+            
+        except Exception as e:
+            logger.error(f"Error indexing session document: {e}", exc_info=True)
+            return "", 0
+    
+    async def index_session_documents(self,
+                                     session_id: str,
+                                     document_ids: Optional[List[str]] = None,
+                                     output_file: Optional[str] = None) -> Tuple[str, Dict[str, Any]]:
+        """
+        Index multiple documents from a user session
+        
+        Args:
+            session_id: Session identifier
+            document_ids: Optional list of document IDs (if None, index all)
+            output_file: Optional output file path
+            
+        Returns:
+            Tuple with output file path and results dictionary
+        """
+        all_chunks = []
+        results = {
+            "indexed_documents": 0,
+            "total_chunks": 0,
+            "documents": {}
+        }
+        
+        try:
+            # Get all documents from session
+            if document_ids:
+                documents = []
+                for doc_id in document_ids:
+                    doc = await self.session_manager.get_document(session_id, doc_id)
+                    if doc:
+                        documents.append(doc)
+            else:
+                # Get metadata for all documents in session
+                documents_meta = await self.session_manager.get_all_documents(session_id)
+                documents = []
+                for doc_meta in documents_meta:
+                    doc_id = doc_meta.get("document_id")
+                    if doc_id:
+                        doc = await self.session_manager.get_document(session_id, doc_id)
+                        if doc:
+                            documents.append(doc)
+            
+            # Process each document
+            for document in documents:
+                doc_id = document.get("document_id")
+                try:
+                    # Extract metadata and content
+                    content = document.get("content", b"")
+                    metadata = document.get("metadata", {})
+                    filename = metadata.get("filename", f"document_{doc_id}")
+                    document_type = metadata.get("content_type", "application/octet-stream")
+                    
+                    # Index document content
+                    chunks = await self.index_document_content(
+                        document_content=content,
+                        document_type=document_type,
+                        filename=filename,
+                        metadata={
+                            "document_id": doc_id,
+                            "session_id": session_id,
+                            **metadata
+                        }
+                    )
+                    
+                    # Add chunks to collection
+                    all_chunks.extend(chunks)
+                    
+                    # Update results
+                    results["indexed_documents"] += 1
+                    results["total_chunks"] += len(chunks)
+                    results["documents"][doc_id] = {
+                        "chunks": len(chunks),
+                        "filename": filename,
+                        "document_type": document_type
+                    }
+                    
+                except Exception as e:
+                    logger.error(f"Error indexing document {doc_id}: {e}", exc_info=True)
+                    results["documents"][doc_id] = {
+                        "error": str(e),
+                        "chunks": 0
+                    }
+            
+            # Save all chunks to file
+            if all_chunks:
+                output_path = self.save_index(all_chunks, output_file)
+                results["output_file"] = output_path
+                results["status"] = "success"
+            else:
+                results["status"] = "no_chunks"
+                results["output_file"] = ""
+                output_path = ""
+            
+            return output_path, results
+            
+        except Exception as e:
+            logger.error(f"Error indexing session documents: {e}", exc_info=True)
+            return "", {
+                "status": "error",
+                "error": str(e),
+                "indexed_documents": 0,
+                "total_chunks": 0
+            }
 
 
 # Example usage

@@ -1,0 +1,24 @@
+# Load Test Summary
+
+Test performed on: Wed May  7 15:25:52 EDT 2025
+
+## Test Scenarios
+1. Low load: concurrency=2, translation=10, simplification=10
+2. Medium load: concurrency=5, translation=20, simplification=20
+3. High load: concurrency=10, translation=50, simplification=50
+4. Translation focused: concurrency=8, translation=100, simplification=10
+5. Simplification focused: concurrency=8, translation=10, simplification=100
+
+## Results Location
+Detailed JSON results for each test can be found in:
+- /Users/jameswilson/Desktop/PRODUCTION/test/casMay4/scripts/../load_test_results/low_load_results.json
+- /Users/jameswilson/Desktop/PRODUCTION/test/casMay4/scripts/../load_test_results/medium_load_results.json
+- /Users/jameswilson/Desktop/PRODUCTION/test/casMay4/scripts/../load_test_results/high_load_results.json
+- /Users/jameswilson/Desktop/PRODUCTION/test/casMay4/scripts/../load_test_results/translation_focused_results.json
+- /Users/jameswilson/Desktop/PRODUCTION/test/casMay4/scripts/../load_test_results/simplification_focused_results.json
+
+## Next Steps
+1. Analyze the results to identify performance bottlenecks
+2. Compare throughput and latency across different concurrency levels
+3. Check memory usage patterns for potential memory leaks
+4. Consider optimizations for the most resource-intensive operations
