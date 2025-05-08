@@ -1041,6 +1041,331 @@ class MetricsCollector:
             "timestamp": datetime.now().isoformat()
         }
         
+    def record_translation_metrics(
+        self,
+        source_language: str,
+        target_language: str,
+        text_length: int,
+        processing_time: float,
+        model_id: str = "unknown"
+    ) -> None:
+        """
+        Record translation metrics.
+        
+        Args:
+            source_language: Source language code
+            target_language: Target language code
+            text_length: Length of the processed text
+            processing_time: Processing time in seconds
+            model_id: Model used for translation
+        
+        Returns:
+            None
+        """
+        if not self.enabled:
+            return
+            
+        # Use the language_operation method to record metrics
+        self.record_language_operation(
+            source_lang=source_language,
+            target_lang=target_language,
+            operation="translation",
+            duration=processing_time,
+            input_size=text_length,
+            output_size=text_length,  # Approximation, we don't have the actual output length
+            success=True
+        )
+        
+        # Record model usage if we have a model ID
+        if model_id and model_id != "unknown":
+            # Approximate token counts based on text length
+            # This is a rough estimate - 1 token ≈ 4 characters for English
+            input_tokens = max(1, text_length // 4)
+            output_tokens = max(1, text_length // 4)
+            
+            self.record_model_usage(
+                model_id=model_id,
+                operation="translation",
+                duration=processing_time,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True
+            )
+            
+    def record_simplification_metrics(
+        self,
+        language: str,
+        text_length: int,
+        simplified_length: int,
+        level: str,
+        processing_time: float,
+        model_id: str = "unknown"
+    ) -> None:
+        """
+        Record text simplification metrics.
+        
+        Args:
+            language: Language code
+            text_length: Length of the original text
+            simplified_length: Length of the simplified text
+            level: Simplification level (e.g., "simple", "medium")
+            processing_time: Processing time in seconds
+            model_id: Model used for simplification
+        
+        Returns:
+            None
+        """
+        if not self.enabled:
+            return
+            
+        # Use the language_operation method to record metrics
+        self.record_language_operation(
+            source_lang=language,
+            target_lang=language,  # Same language for simplification
+            operation="simplification",
+            duration=processing_time,
+            input_size=text_length,
+            output_size=simplified_length,
+            success=True
+        )
+        
+        # Record model usage if we have a model ID
+        if model_id and model_id != "unknown":
+            # Approximate token counts based on text length
+            # This is a rough estimate - 1 token ≈ 4 characters for English
+            input_tokens = max(1, text_length // 4)
+            output_tokens = max(1, simplified_length // 4)
+            
+            self.record_model_usage(
+                model_id=model_id,
+                operation="simplification",
+                duration=processing_time,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True
+            )
+            
+    def record_tts_metrics(
+        self,
+        language: str,
+        text_length: int,
+        audio_size: int,
+        voice_id: str,
+        processing_time: float,
+        model_id: str = "unknown",
+        output_format: str = "mp3"
+    ) -> None:
+        """
+        Record text-to-speech metrics.
+        
+        Args:
+            language: Language code
+            text_length: Length of the input text
+            audio_size: Size of the generated audio in bytes
+            voice_id: Voice identifier used
+            processing_time: Processing time in seconds
+            model_id: Model used for TTS
+            output_format: Audio output format
+        
+        Returns:
+            None
+        """
+        if not self.enabled:
+            return
+            
+        # Use the language_operation method to record metrics
+        self.record_language_operation(
+            source_lang=language,
+            target_lang=language,  # Same language for TTS
+            operation="text_to_speech",
+            duration=processing_time,
+            input_size=text_length,
+            output_size=audio_size,
+            success=True
+        )
+        
+        # Record model usage if we have a model ID
+        if model_id and model_id != "unknown":
+            # Approximate token counts based on text length
+            # This is a rough estimate - 1 token ≈ 4 characters for English
+            input_tokens = max(1, text_length // 4)
+            # Output tokens don't apply directly to audio, use 0
+            output_tokens = 0
+            
+            self.record_model_usage(
+                model_id=model_id,
+                operation="text_to_speech",
+                duration=processing_time,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True
+            )
+            
+    def record_stt_metrics(
+        self,
+        language: str,
+        audio_size: int,
+        text_length: int,
+        processing_time: float,
+        confidence: float = 0.0,
+        model_id: str = "unknown"
+    ) -> None:
+        """
+        Record speech-to-text metrics.
+        
+        Args:
+            language: Language code
+            audio_size: Size of the input audio in bytes
+            text_length: Length of the transcribed text
+            processing_time: Processing time in seconds
+            confidence: Transcription confidence score
+            model_id: Model used for STT
+        
+        Returns:
+            None
+        """
+        if not self.enabled:
+            return
+            
+        # Use the language_operation method to record metrics
+        self.record_language_operation(
+            source_lang=language,
+            target_lang=language,  # Same language for STT
+            operation="speech_to_text",
+            duration=processing_time,
+            input_size=audio_size,
+            output_size=text_length,
+            success=True
+        )
+        
+        # Record model usage if we have a model ID
+        if model_id and model_id != "unknown":
+            # Input and output tokens don't directly apply to audio/text in the same way
+            # We're using a simplified approach here
+            input_tokens = max(1, audio_size // 1000)  # Very rough approximation
+            output_tokens = max(1, text_length // 4)
+            
+            self.record_model_usage(
+                model_id=model_id,
+                operation="speech_to_text",
+                duration=processing_time,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True
+            )
+            
+    def record_summarization_metrics(
+        self,
+        language: str,
+        text_length: int,
+        summary_length: int,
+        summary_ratio: float,
+        processing_time: float,
+        length_setting: str = "medium",
+        model_id: str = "unknown"
+    ) -> None:
+        """
+        Record text summarization metrics.
+        
+        Args:
+            language: Language code
+            text_length: Length of the original text
+            summary_length: Length of the generated summary
+            summary_ratio: Ratio of summary length to original text length
+            processing_time: Processing time in seconds
+            length_setting: Summary length setting (short, medium, long)
+            model_id: Model used for summarization
+        
+        Returns:
+            None
+        """
+        if not self.enabled:
+            return
+            
+        # Use the language_operation method to record metrics
+        self.record_language_operation(
+            source_lang=language,
+            target_lang=language,  # Same language for summarization
+            operation="summarization",
+            duration=processing_time,
+            input_size=text_length,
+            output_size=summary_length,
+            success=True
+        )
+        
+        # Record model usage if we have a model ID
+        if model_id and model_id != "unknown":
+            # Approximate token counts based on text length
+            # This is a rough estimate - 1 token ≈ 4 characters for English
+            input_tokens = max(1, text_length // 4)
+            output_tokens = max(1, summary_length // 4)
+            
+            self.record_model_usage(
+                model_id=model_id,
+                operation="summarization",
+                duration=processing_time,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True
+            )
+            
+    def record_anonymization_metrics(
+        self,
+        language: str,
+        text_length: int,
+        anonymized_length: int,
+        entity_count: int,
+        entity_types: List[str],
+        mode: str,
+        processing_time: float,
+        model_id: str = "unknown"
+    ) -> None:
+        """
+        Record text anonymization metrics.
+        
+        Args:
+            language: Language code
+            text_length: Length of the original text
+            anonymized_length: Length of the anonymized text
+            entity_count: Number of entities detected and anonymized
+            entity_types: Types of entities anonymized
+            mode: Anonymization mode (redact, mask, replace)
+            processing_time: Processing time in seconds
+            model_id: Model used for anonymization
+        
+        Returns:
+            None
+        """
+        if not self.enabled:
+            return
+            
+        # Use the language_operation method to record metrics
+        self.record_language_operation(
+            source_lang=language,
+            target_lang=language,  # Same language for anonymization
+            operation="anonymization",
+            duration=processing_time,
+            input_size=text_length,
+            output_size=anonymized_length,
+            success=True
+        )
+        
+        # Record model usage if we have a model ID
+        if model_id and model_id != "unknown":
+            # Approximate token counts based on text length
+            # This is a rough estimate - 1 token ≈ 4 characters for English
+            input_tokens = max(1, text_length // 4)
+            output_tokens = max(1, anonymized_length // 4)
+            
+            self.record_model_usage(
+                model_id=model_id,
+                operation="anonymization",
+                duration=processing_time,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                success=True
+            )
+
     def get_time_series(
         self,
         series_name: str,

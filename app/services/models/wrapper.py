@@ -33,17 +33,7 @@ class ModelType(str, Enum):
     ANONYMIZER = "anonymizer"
     
 # Define wrapper_map at module level so it can be accessed by fix_circular_import
-wrapper_map = {
-    "translation": None,  # Will be set below
-    "mbart_translation": None,  # Will be set below
-    "language_detection": None,  # Will be set below
-    "ner_detection": None,  # Will be set below
-    "rag_generator": None,  # Will be set below
-    "rag_retriever": None,  # Will be set below 
-    "simplifier": None,  # Will be set below
-    "anonymizer": None,  # Will be set below
-    "embedding_model": None  # Will be patched at import time
-}
+wrapper_map = {}  # Will be initialized in get_wrapper_for_model
 
 class TranslationModelWrapper(BaseModelWrapper):
     """Wrapper for translation models"""
@@ -478,7 +468,7 @@ class LanguageDetectionWrapper(BaseModelWrapper):
                 metadata={"error": f"Postprocessing error: {str(e)}"}
             )
 
-class SimplifierWrapper(BaseModelWrapper):
+class SimplificationModelWrapper(BaseModelWrapper):
     """Wrapper for text simplification models"""
     
     def _preprocess(self, input_data: ModelInput) -> Dict[str, Any]:
@@ -737,9 +727,9 @@ class AnonymizerWrapper(BaseModelWrapper):
         # Implementation details...
         return ModelOutput(result={})
 
-def get_wrapper_for_model(model_type: str, model, tokenizer, config: Dict[str, Any] = None, **kwargs):
+def create_model_wrapper(model_type: str, model, tokenizer, config: Dict[str, Any] = None, **kwargs):
     """
-    Factory function to get the appropriate wrapper for a model type
+    Factory function to create the appropriate wrapper for a model type
     
     Args:
         model_type: Type of model to wrap
@@ -750,36 +740,33 @@ def get_wrapper_for_model(model_type: str, model, tokenizer, config: Dict[str, A
     Returns:
         BaseModelWrapper: Appropriate model wrapper
     """
-    # Update the global wrapper_map with the actual wrapper classes
-    global wrapper_map
-    wrapper_map.update({
-        "translation": TranslationModelWrapper,
-        "mbart_translation": TranslationModelWrapper,  # Use TranslationModelWrapper for MBART
-        "language_detection": LanguageDetectionWrapper,
-        "ner_detection": NERDetectionWrapper,
-        "rag_generator": RAGGeneratorWrapper,
-        "rag_retriever": RAGRetrieverWrapper,
-        "simplifier": SimplifierWrapper,
-        "anonymizer": AnonymizerWrapper,
-        # "embedding_model" will be patched at import time
-    })
+    # Special case for mbart_translation - ALWAYS use TranslationModelWrapper
+    if model_type == 'mbart_translation' or 'mbart' in model_type.lower():
+        logger.info(f"Using TranslationModelWrapper for MBART model type: {model_type}")
+        return TranslationModelWrapper(model, tokenizer, config, **kwargs)
     
-    if model_type in wrapper_map:
-        wrapper_class = wrapper_map[model_type]
-        if wrapper_class:
-            return wrapper_class(model, tokenizer, config, **kwargs)
-        else:
-            if model_type == "embedding_model":
-                # Try to import EmbeddingModelWrapper here to avoid circular imports
-                try:
-                    from app.services.models.embedding_wrapper import EmbeddingModelWrapper
-                    return EmbeddingModelWrapper(model, tokenizer, config, **kwargs)
-                except ImportError:
-                    logger.warning(f"No specific wrapper for model type: {model_type}, using base wrapper")
-                    return BaseModelWrapper(model, tokenizer, config, **kwargs)
-    else:
-        logger.warning(f"No specific wrapper for model type: {model_type}, using base wrapper")
-        return BaseModelWrapper(model, tokenizer, config, **kwargs)
+    # Special case for translation - ALWAYS use TranslationModelWrapper 
+    if model_type == 'translation' or 'translation' in model_type.lower():
+        logger.info(f"Using TranslationModelWrapper for translation model type: {model_type}")
+        return TranslationModelWrapper(model, tokenizer, config, **kwargs)
         
+    # Use wrapper_map for other model types
+    if model_type in wrapper_map and wrapper_map[model_type]:
+        logger.info(f"Using wrapper from map for model type: {model_type}")
+        wrapper_class = wrapper_map[model_type]
+        return wrapper_class(model, tokenizer, config, **kwargs)
+    
+    # Special handling for embedding models
+    if model_type == 'embedding_model':
+        try:
+            from app.services.models.embedding_wrapper import EmbeddingModelWrapper
+            return EmbeddingModelWrapper(model, tokenizer, config, **kwargs)
+        except ImportError:
+            logger.warning(f"EmbeddingModelWrapper not available, using base wrapper for {model_type}")
+    
+    # Fallback to base wrapper with warning
+    logger.warning(f"No specific wrapper for model type: {model_type}, using base wrapper")
+    return BaseModelWrapper(model, tokenizer, config, **kwargs)
+
 # Alias for backward compatibility
-create_model_wrapper = get_wrapper_for_model
+get_wrapper_for_model = create_model_wrapper

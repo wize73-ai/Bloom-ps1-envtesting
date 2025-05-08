@@ -142,6 +142,15 @@ class SimplificationPipeline:
         logger.debug(f"Simplifying text to level {level} (grade {target_grade})")
         
         try:
+            # Import prompt enhancer if available
+            try:
+                from app.services.models.simplifier_prompt_enhancer import SimplifierPromptEnhancer
+                prompt_enhancer = SimplifierPromptEnhancer()
+                enhanced_prompt = True
+            except ImportError:
+                enhanced_prompt = False
+                logger.debug("Simplifier prompt enhancer not available")
+            
             # Get model ID if specified, otherwise use default
             model_id = options.get("model_name", self.model_type)
             
@@ -160,6 +169,32 @@ class SimplificationPipeline:
             # Add context if provided
             if "context" in options:
                 input_data["context"] = options["context"]
+            
+            # Enhance prompt if available
+            if enhanced_prompt:
+                try:
+                    # Enhance prompt with model-specific optimization
+                    enhanced_data = prompt_enhancer.enhance_prompt(
+                        text=text,
+                        model_name=model_id,
+                        level=level,
+                        grade_level=target_grade,
+                        language=language,
+                        domain=options.get("domain"),
+                        preserve_formatting=options.get("preserve_formatting", True)
+                    )
+                    
+                    # Update input data with enhanced prompt
+                    if "prompt" in enhanced_data:
+                        input_data["prompt"] = enhanced_data["prompt"]
+                    
+                    # Update parameters with optimized values
+                    if "parameters" in enhanced_data:
+                        input_data["parameters"].update(enhanced_data["parameters"])
+                        
+                    logger.debug("Using enhanced prompt for simplification")
+                except Exception as e:
+                    logger.warning(f"Error enhancing simplification prompt: {str(e)}")
             
             # Run simplification model
             start_time = time.time()
@@ -203,6 +238,64 @@ class SimplificationPipeline:
             
             # Calculate readability metrics
             metrics = self._calculate_readability_metrics(simplified_text, language)
+            
+            # Track simplification metrics
+            try:
+                # Track metrics for this operation
+                from app.audit.metrics import MetricsCollector
+                metrics_collector = MetricsCollector.get_instance()
+                metrics_collector.record_simplification_metrics(
+                    language=language,
+                    text_length=len(text),
+                    simplified_length=len(simplified_text),
+                    level=str(level),
+                    processing_time=processing_time,
+                    model_id=model_id
+                )
+                
+                # Log to audit system
+                from app.audit.logger import AuditLogger
+                audit_logger = AuditLogger()
+                await audit_logger.log_simplification(
+                    text_length=len(text),
+                    simplified_length=len(simplified_text),
+                    language=language,
+                    level=str(level),
+                    model_id=model_id,
+                    processing_time=processing_time,
+                    metadata={
+                        "grade_level": target_grade,
+                        "domain": options.get("domain"),
+                        "enhanced_prompt": enhanced_prompt,
+                        "readability_metrics": metrics
+                    }
+                )
+                
+                # Verify quality if veracity auditor is available
+                try:
+                    from app.audit.veracity import VeracityAuditor
+                    veracity = VeracityAuditor()
+                    verification_result = await veracity._verify_simplification(
+                        text,
+                        simplified_text,
+                        language,
+                        {
+                            "level": level,
+                            "grade_level": target_grade,
+                            "domain": options.get("domain")
+                        }
+                    )
+                    
+                    # Add verification metrics to the result
+                    metrics["verification"] = {
+                        "score": verification_result.get("score", 0.0),
+                        "verified": verification_result.get("verified", False),
+                        "issues": len(verification_result.get("issues", []))
+                    }
+                except (ImportError, Exception) as e:
+                    logger.debug(f"Could not verify simplification quality: {str(e)}")
+            except (ImportError, Exception) as e:
+                logger.debug(f"Could not log simplification metrics: {str(e)}")
             
             logger.debug(f"Simplification completed in {processing_time:.3f}s")
             
@@ -365,62 +458,180 @@ class SimplificationPipeline:
             logger.error(f"Error calculating readability metrics: {str(e)}", exc_info=True)
             return {"estimated_grade_level": 0}
             
-    def _rule_based_simplify(self, text: str, language: str, level: int) -> str:
+    def _rule_based_simplify(self, text: str, level: int, language: str = "en", domain: str = None) -> str:
         """
-        Rule-based text simplification when the model-based approach fails.
+        Apply rule-based simplification with a specific level.
         
         Args:
             text: Text to simplify
+            level: Simplification level (1-5, where 5 is simplest)
             language: Language code
-            level: Simplification level (1-5)
+            domain: Optional domain for domain-specific simplification
             
         Returns:
-            Simplified text using basic rules
+            Simplified text
         """
-        logger.info(f"Using rule-based simplification for level {level}")
         
         # If no text, return empty string
         if not text:
             return ""
+        
+        # Check if legal domain
+        is_legal_domain = domain and "legal" in domain.lower()
+        
+        # Define vocabulary replacements for different levels
+        replacements = {}
+        
+        # Level 1 (minimal simplification)
+        level1_replacements = {
+            r'\butilize\b': 'use',
+            r'\bpurchase\b': 'buy',
+            r'\bsubsequently\b': 'later',
+            r'\bfurnish\b': 'provide',
+            r'\baforementioned\b': 'previously mentioned',
+            r'\bdelineated\b': 'outlined',
+            r'\bin accordance with\b': 'according to'
+        }
+        
+        # Level 2
+        level2_replacements = {
+            r'\bindicate\b': 'show',
+            r'\bsufficient\b': 'enough',
+            r'\badditional\b': 'more',
+            r'\bprior to\b': 'before',
+            r'\bverifying\b': 'proving',
+            r'\brequirements\b': 'rules'
+        }
+        
+        # Level 3
+        level3_replacements = {
+            r'\bassist\b': 'help',
+            r'\bobtain\b': 'get',
+            r'\brequire\b': 'need',
+            r'\bcommence\b': 'start',
+            r'\bterminate\b': 'end',
+            r'\bdemonstrate\b': 'show',
+            r'\bdelineated\b': 'described',
+            r'\bin accordance with\b': 'following',
+            r'\bemployment status\b': 'job status',
+            r'\bapplication procedure\b': 'application process'
+        }
+        
+        # Level 4
+        level4_replacements = {
+            r'\bregarding\b': 'about',
+            r'\bimplement\b': 'use',
+            r'\bnumerous\b': 'many',
+            r'\bfacilitate\b': 'help',
+            r'\binitial\b': 'first',
+            r'\battempt\b': 'try',
+            r'\bapplicant\b': 'you',
+            r'\bfurnish\b': 'give',
+            r'\baforementioned\b': 'this',
+            r'\bdelineated\b': 'listed',
+            r'\bverifying\b': 'that proves',
+            r'\bemployment status\b': 'job information',
+            r'\bapplication procedure\b': 'steps',
+            r'\bdocumentation\b': 'papers',
+            r'\bsection\b': 'part'
+        }
+        
+        # Level 5
+        level5_replacements = {
+            r'\binquire\b': 'ask',
+            r'\bascertain\b': 'find out',
+            r'\bcomprehend\b': 'understand',
+            r'\bnevertheless\b': 'but',
+            r'\btherefore\b': 'so',
+            r'\bfurthermore\b': 'also',
+            r'\bconsequently\b': 'so',
+            r'\bapproximately\b': 'about',
+            r'\bmodification\b': 'change',
+            r'\bendeavor\b': 'try',
+            r'\bproficiency\b': 'skill',
+            r'\bnecessitate\b': 'need',
+            r'\bacquisition\b': 'getting',
+            r'\bemployment status\b': 'job info',
+            r'\bapplication procedure\b': 'form',
+            r'\bmust\b': 'need to'
+        }
+        
+        # Add replacements based on level
+        replacements.update(level1_replacements)
+        if level >= 2:
+            replacements.update(level2_replacements)
+        if level >= 3:
+            replacements.update(level3_replacements)
+        if level >= 4:
+            replacements.update(level4_replacements)
+        if level >= 5:
+            replacements.update(level5_replacements)
+        
+        # Handle sentence splitting for higher levels
+        if level >= 3:
+            # Split text into sentences
+            sentences = re.split(r'([.!?])', text)
+            processed_sentences = []
             
-        # Get language-specific replacements
-        replacements = self._get_language_replacements(language, level)
-        
-        # Split text into sentences
-        sentences = re.split(r'([.!?])', text)
-        processed_sentences = []
-        
-        # Process each sentence
-        i = 0
-        while i < len(sentences):
-            if i + 1 < len(sentences):
-                # Combine sentence with its punctuation
-                sentence = sentences[i] + sentences[i+1]
-                i += 2
-            else:
-                sentence = sentences[i]
-                i += 1
-                
-            # Skip empty sentences
-            if not sentence.strip():
-                continue
-                
-            # For higher simplification levels, break long sentences
-            if level >= 3 and len(sentence.split()) > 15:
-                clauses = re.split(r'([,;:])', sentence)
-                for j in range(0, len(clauses), 2):
-                    if j + 1 < len(clauses):
-                        processed_sentences.append(clauses[j] + clauses[j+1])
+            # Process each sentence
+            i = 0
+            while i < len(sentences):
+                if i + 1 < len(sentences):
+                    # Combine sentence with its punctuation
+                    sentence = sentences[i] + sentences[i+1]
+                    i += 2
+                else:
+                    sentence = sentences[i]
+                    i += 1
+                    
+                # Skip empty sentences
+                if not sentence.strip():
+                    continue
+                    
+                # For higher simplification levels, break long sentences
+                if len(sentence.split()) > 15:
+                    # More aggressive splitting for highest levels
+                    if level >= 4:
+                        clauses = re.split(r'([,;:])', sentence)
+                        for j in range(0, len(clauses), 2):
+                            if j + 1 < len(clauses):
+                                processed_sentences.append(clauses[j] + clauses[j+1])
+                            else:
+                                processed_sentences.append(clauses[j])
                     else:
-                        processed_sentences.append(clauses[j])
-            else:
-                processed_sentences.append(sentence)
+                        # Less aggressive for level 3
+                        clauses = re.split(r'([;:])', sentence) 
+                        for j in range(0, len(clauses), 2):
+                            if j + 1 < len(clauses):
+                                processed_sentences.append(clauses[j] + clauses[j+1])
+                            else:
+                                processed_sentences.append(clauses[j])
+                else:
+                    processed_sentences.append(sentence)
+            
+            # Join sentences
+            simplified_text = " ".join(processed_sentences)
+        else:
+            # For lower levels, don't split sentences
+            simplified_text = text
         
-        # Apply word replacements based on complexity level
-        simplified_text = " ".join(processed_sentences)
-        for complex_word, simple_word in replacements.items():
-            pattern = r'\b' + re.escape(complex_word) + r'\b'
-            simplified_text = re.sub(pattern, simple_word, simplified_text, flags=re.IGNORECASE)
+        # Apply word replacements
+        for pattern, replacement in replacements.items():
+            try:
+                simplified_text = re.sub(pattern, replacement, simplified_text, flags=re.IGNORECASE)
+            except:
+                # Skip problematic patterns
+                pass
+        
+        # Clean up spaces
+        simplified_text = re.sub(r'\s+', ' ', simplified_text).strip()
+        
+        # For highest level, add explaining phrases
+        if level == 5:
+            if is_legal_domain:
+                simplified_text += " This means you need to follow what the law says."
+            else:
+                simplified_text += " This means you need to show the required information."
         
         return simplified_text
     

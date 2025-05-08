@@ -343,11 +343,30 @@ class TranslationPipeline:
             
             # Run translation model
             start_time = time.time()
-            result = await self.model_manager.run_model(
-                model_id,
-                "process",
-                input_data
-            )
+            try:
+                result = await self.model_manager.run_model(
+                    model_id,
+                    "process",
+                    input_data
+                )
+                if result is None:
+                    logger.error(f"Translation model returned None result for model_id={model_id}")
+                    result = {
+                        "result": "Translation error: Model returned None result", 
+                        "metadata": {
+                            "error": "model_failure",
+                            "fallback_applied": True
+                        }
+                    }
+            except Exception as e:
+                logger.error(f"Error running translation model: {str(e)}", exc_info=True)
+                result = {
+                    "result": f"Translation error: {str(e)}", 
+                    "metadata": {
+                        "error": "model_exception",
+                        "fallback_applied": True
+                    }
+                }
             processing_time = time.time() - start_time
             
             # Extract translation results
@@ -482,15 +501,15 @@ class TranslationPipeline:
         Returns:
             Dict with translation results
         """
-        # Default to "translation" (now points to MBART in config) if no model specified
-        if model_id is None or model_id == "mt5_translation":
+        # Always use MBART as primary model unless explicitly specified otherwise
+        if model_id is None or model_id == "translation" or model_id == "mt5_translation" or model_id == "":
             # Get MBART language codes
             mbart_source_lang = self._get_mbart_language_code(source_language)
             mbart_target_lang = self._get_mbart_language_code(target_language)
             
-            # Use "translation" as primary model (now configured as MBART in model_registry.json)
+            # Use "mbart_translation" explicitly to ensure we get the right model
             logger.info(f"Using MBART as primary translation model for {source_language} to {target_language}")
-            model_id = "translation"
+            model_id = "mbart_translation"  # Use MBART translation model directly
             
             # Create translation request with MBART specific parameters
             request = TranslationRequest(

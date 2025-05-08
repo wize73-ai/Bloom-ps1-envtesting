@@ -76,13 +76,13 @@ echo -e "${empty_line}"
 echo -e "${BL}${horiz_line}${BR}\n"
 
 # Check for venv
-if [ ! -d ".venv" ]; then
+if [ ! -d "venv" ] && [ ! -d ".venv" ]; then
   echo -e "${YELLOW}🔍 Python virtual environment not found.${NC}"
   read -p "Would you like to create and install dependencies now? (y/n): " confirm
   if [[ "$confirm" == "y" ]]; then
     echo -e "${BLUE}🔧 Creating virtual environment...${NC}"
-    python3 -m venv .venv
-    source .venv/bin/activate
+    python3 -m venv venv
+    source venv/bin/activate
     echo -e "${BLUE}📦 Installing dependencies...${NC}"
     pip install -r requirements.txt
     
@@ -93,6 +93,9 @@ if [ ! -d ".venv" ]; then
     echo -e "${RED}❌ Aborting. Please set up the environment manually.${NC}"
     exit 1
   fi
+elif [ -d "venv" ]; then
+  echo -e "${GREEN}✅ Virtual environment found. Activating...${NC}"
+  source venv/bin/activate
 else
   echo -e "${GREEN}✅ Virtual environment found. Activating...${NC}"
   source .venv/bin/activate
